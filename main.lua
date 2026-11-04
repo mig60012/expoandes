@@ -1,5 +1,14 @@
-function love.load()
+-- GLOBALS
+OBJECT = require("lib/classic")
+Gamestate = require("lib/gamestate")
 
+
+-- MODULES
+
+
+-- LOVE CALLBACKS
+function love.load()
+  Gamestate.registerEvents()
 end
 
 function love.update(dt)
