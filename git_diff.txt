@@ -1,0 +1,257 @@
+diff --git a/main.lua b/main.lua
+index 468b251..3727dc9 100644
+--- a/main.lua
++++ b/main.lua
+@@ -1,28 +1,23 @@
+--- GLOBALS
+-OBJECT = require("lib/classic")
+-Gamestate = require("lib/gamestate")
+-
+-
+--- MODULES
++local Game = require("src/game")
+ 
+ 
+ -- LOVE CALLBACKS
+ function love.load()
+-  Gamestate.registerEvents()
++  Game.load()
+ end
+ 
+ function love.update(dt)
+-
++  Game.update(dt)
+ end
+ 
+ function love.draw()
+-
++  Game.draw()
+ end
+ 
+ function love.keypressed(key)
+-
++  Game.keypressed(key)
+ end
+ 
+ function love.keyreleased(key)
+-
++  Game.keyreleased(key)
+ end
+diff --git a/src/state_machine.lua b/src/state_machine.lua
+index a94a8ae..be2afb5 100644
+--- a/src/state_machine.lua
++++ b/src/state_machine.lua
+@@ -2,17 +2,61 @@
+ -- El state machine es el encargado de cambiar el gamestate
+ --]]
+ 
+-local state_machine = {}
++local state_machine = {
++  states = {},
++  current = nil,
++}
+ 
+ -- Aqui se cargan todos los States
+-function state_machine.load()
+-  state_machine.casa = require("src/casa")
+-  state_machine.casino = require("src/casino")
+-  state_machine.transicion = require("src/transicion")
+-  state_machine.animacion = require("src/animacion")
++function state_machine.load(context)
++  state_machine.states = {
++    casa = require("src/states/casa"),
++    casino = require("src/states/casino"),
++    transicion = require("src/states/transicion"),
++    animacion = require("src/states/animacion"),
++  }
++
++  state_machine.context = context or {}
++  state_machine:switch("casa")
++end
++
++function state_machine:switch(name, ...)
++  local next_state = self.states[name]
++  assert(next_state, "Unknown state: " .. tostring(name))
++
++  if self.current and self.current.leave then
++    self.current:leave()
++  end
++
++  self.current = next_state
++
++  if self.current.enter then
++    self.current:enter(self.context, ...)
++  end
++end
++
++function state_machine:update(dt)
++  if self.current and self.current.update then
++    self.current:update(dt)
++  end
++end
++
++function state_machine:draw()
++  if self.current and self.current.draw then
++    self.current:draw()
++  end
++end
++
++function state_machine:keypressed(key, scancode, isrepeat)
++  if self.current and self.current.keypressed then
++    self.current:keypressed(key, scancode, isrepeat)
++  end
+ end
+ 
+-function state_machine.update()
++function state_machine:keyreleased(key, scancode)
++  if self.current and self.current.keyreleased then
++    self.current:keyreleased(key, scancode)
++  end
+ end
+ 
+ return state_machine
+diff --git a/src/states/animacion.lua b/src/states/animacion.lua
+index e69de29..239a324 100644
+--- a/src/states/animacion.lua
++++ b/src/states/animacion.lua
+@@ -0,0 +1,11 @@
++local animacion = {}
++
++function animacion:enter(context)
++  self.context = context
++end
++
++function animacion:draw()
++  love.graphics.print("Animación - estado pendiente", 20, 20)
++end
++
++return animacion
+diff --git a/src/states/casa.lua b/src/states/casa.lua
+index e69de29..142cafe 100644
+--- a/src/states/casa.lua
++++ b/src/states/casa.lua
+@@ -0,0 +1,19 @@
++local Player = require("src/entities/player")
++
++local casa = {}
++
++function casa:enter(context)
++  self.context = context
++  self.player = Player.new(500, 500)
++end
++
++function casa:draw()
++  love.graphics.print("Casa - estado de prueba", 20, 20)
++  self.player:draw()
++end
++
++function casa:update(dt)
++  self.player:update(dt)
++end
++
++return casa
+diff --git a/src/states/casino.lua b/src/states/casino.lua
+index e69de29..a4d6e53 100644
+--- a/src/states/casino.lua
++++ b/src/states/casino.lua
+@@ -0,0 +1,11 @@
++local casino = {}
++
++function casino:enter(context)
++  self.context = context
++end
++
++function casino:draw()
++  love.graphics.print("Casino - estado pendiente", 20, 20)
++end
++
++return casino
+diff --git a/src/states/transicion.lua b/src/states/transicion.lua
+index e69de29..4ec46d0 100644
+--- a/src/states/transicion.lua
++++ b/src/states/transicion.lua
+@@ -0,0 +1,11 @@
++local transicion = {}
++
++function transicion:enter(context)
++  self.context = context
++end
++
++function transicion:draw()
++  love.graphics.print("Transición - estado pendiente", 20, 20)
++end
++
++return transicion
+diff --git a/src/systems/dialogue.lua b/src/systems/dialogue.lua
+index fbb39fd..3bb991f 100644
+--- a/src/systems/dialogue.lua
++++ b/src/systems/dialogue.lua
+@@ -1,8 +1,32 @@
+-Dialogue = OBJECT:extend()
++local Dialogue = {}
++Dialogue.__index = Dialogue
+ 
+-function Dialogue:new(filename)
+-  local content = io.open("data/dialogues/" .. filename)
+-  --TODO
++function Dialogue.new(filename)
++  local dialogue = setmetatable({ lines = {}, current = 1 }, Dialogue)
++
++  if filename then
++    local content = love.filesystem.read("src/data/dialogues/" .. filename)
++    if content then
++      for line in content:gmatch("[^\r\n]+") do
++        dialogue.lines[#dialogue.lines + 1] = line
++      end
++    end
++  end
++
++  return dialogue
++end
++
++function Dialogue:current_line()
++  return self.lines[self.current]
++end
++
++function Dialogue:next()
++  if self.current >= #self.lines then
++    return false
++  end
++
++  self.current = self.current + 1
++  return true
+ end
+ 
+ return Dialogue
+diff --git a/src/systems/economy.lua b/src/systems/economy.lua
+index e69de29..1291049 100644
+--- a/src/systems/economy.lua
++++ b/src/systems/economy.lua
+@@ -0,0 +1,27 @@
++local Economy = {}
++Economy.__index = Economy
++
++function Economy.new(initial_money)
++  return setmetatable({ money = initial_money or 0 }, Economy)
++end
++
++function Economy:get_money()
++  return self.money
++end
++
++function Economy:add_money(amount)
++  assert(amount >= 0, "Amount must not be negative")
++  self.money = self.money + amount
++end
++
++function Economy:spend_money(amount)
++  assert(amount >= 0, "Amount must not be negative")
++  if self.money < amount then
++    return false
++  end
++
++  self.money = self.money - amount
++  return true
++end
++
++return Economy
