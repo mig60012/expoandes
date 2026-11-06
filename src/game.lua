@@ -6,6 +6,7 @@ local Game = {}
 function Game.load()
   Game.context = {
     economy = Economy.new(),
+    state_machine = StateMachine,
   }
 
   StateMachine.load(Game.context)

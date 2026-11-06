@@ -17,7 +17,7 @@ function state_machine.load(context)
   }
 
   state_machine.context = context or {}
-  state_machine:switch("casa")
+  state_machine:switch("casino")
 end
 
 function state_machine:switch(name, ...)
@@ -48,6 +48,11 @@ function state_machine:draw()
 end
 
 function state_machine:keypressed(key, scancode, isrepeat)
+  if key == "space" then
+    state_machine:switch("casino")
+  elseif key == "o" then
+    state_machine:switch("casa")
+  end
   if self.current and self.current.keypressed then
     self.current:keypressed(key, scancode, isrepeat)
   end
