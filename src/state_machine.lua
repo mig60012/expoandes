@@ -5,6 +5,13 @@
 local state_machine = {
   states = {},
   current = nil,
+  last = nil,
+}
+
+local contexto_inicial = {
+  economy = require("src/systems/economy"),
+  day = 0,
+  time_of_day = 0
 }
 
 -- Aqui se cargan todos los States
@@ -17,7 +24,8 @@ function state_machine.load(context)
   }
 
   state_machine.context = context or {}
-  state_machine:switch("casino")
+  state_machine.current_name = ""
+  state_machine:switch("transicion")
 end
 
 function state_machine:switch(name, ...)
@@ -25,11 +33,12 @@ function state_machine:switch(name, ...)
   assert(next_state, "Unknown state: " .. tostring(name))
 
   if self.current and self.current.leave then
+    self.last = self.current_name
     self.current:leave()
   end
 
   self.current = next_state
-
+  self.current_name = name
   if self.current.enter then
     self.current:enter(self.context, ...)
   end
@@ -48,11 +57,6 @@ function state_machine:draw()
 end
 
 function state_machine:keypressed(key, scancode, isrepeat)
-  if key == "space" then
-    state_machine:switch("casino")
-  elseif key == "o" then
-    state_machine:switch("casa")
-  end
   if self.current and self.current.keypressed then
     self.current:keypressed(key, scancode, isrepeat)
   end
