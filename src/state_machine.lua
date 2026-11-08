@@ -12,6 +12,7 @@ local state_machine = {
 function state_machine.load(context)
   state_machine.states = {
     casa = require("src/states/casa"),
+    trabajo = require("src/states/trabajo"),
     casino = require("src/states/casino"),
     transicion = require("src/states/transicion"),
     animacion = require("src/states/animacion"),
@@ -19,7 +20,7 @@ function state_machine.load(context)
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  state_machine:switch("transicion")
+  state_machine:switch("casa")
 end
 
 function state_machine:switch(name, ...)
@@ -59,6 +60,12 @@ end
 function state_machine:keyreleased(key, scancode)
   if self.current and self.current.keyreleased then
     self.current:keyreleased(key, scancode)
+  end
+end
+
+function state_machine:mousepressed(x, y, button, istouch, presses)
+  if self.current and self.current.mousepressed then
+    self.current:mousepressed(x, y, button, istouch, presses)
   end
 end
 
