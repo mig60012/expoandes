@@ -1,0 +1,304 @@
+%% =====================================================================
+%% EASY TO FALL · SISTEMA DE DECISIONES (Mermaid flowchart)
+%% Fuente: Historia_Easy_To_Fall_9a41bd.docx
+%% ---------------------------------------------------------------------
+%% FORMAS
+%%   Rectángulo = escena o diálogo (sin decisión)
+%%   Hexágono = decisión del jugador
+%%   Rombo = condición automática (depende de variables de estado)
+%%   Estadio (óvalo) = estado que se hereda al siguiente día
+%%   Rectángulo de doble borde, oscuro = final
+%% VARIABLES DE ESTADO
+%%   PF  = puntos de familia (+PF suma, -PF resta)
+%%   x3  = juega 3 juegos en el casino; x6 = juega 6 juegos (todo el día)
+%%   N1, N2 = cómo terminó la noche de los días 1 y 2:
+%%            A = x3 + tiempo con la familia | B = x3 + trabajó | C = x6
+%%   N3 = A: x3 + vendió carro (esposa ya sabe) | B: x3 + conservó
+%%        C: x6 + vendió carro (esposa no sabe) | D: x6 + conservó
+%%   N5 = A: hipotecó la casa | B: usó ahorros de la hija | C: ninguna
+%%   Los valores numéricos de PF y el cálculo del % de deuda dependen
+%%   de las mecánicas del juego (no se definen en el guion).
+%% ===================================================================== 
+
+flowchart TD
+  subgraph INICIO["Secuencia de inicio (común a todos los finales)"]
+    direction TB
+    intro["SECUENCIA DE INICIO<br/>1. Backstory: origen del protagonista, su relación con las apuestas y el préstamo al gota a gota (pago en 5 días)<br/>2. Plano 1 · Sala: apuesta en línea; la esposa advierte «la casa siempre gana»<br/>3. Salto +1 año: ya no apuesta en línea, se la pasa en el casino<br/>4. Plano 2 · Calle de noche: negocia el préstamo (pago en 2 meses)<br/>5. Plano 3 · 5 días antes del plazo: el gota a gota amenaza a la familia<br/>6. Empieza el juego: sala de la casa, el protagonista sale a «trabajar»"]:::intro
+  end
+  subgraph DIA1["Día 1"]
+    direction TB
+    a1_s0["Mañana · Sala<br/>Esposa: «Que te vaya bien en el trabajo, trata de llegar temprano»"]:::scene
+    a1_s1["Entra la hija y saluda:<br/>«Hola papá, ¿cómo estás?»"]:::scene
+    a1_d1{{"DECISIÓN 1.1<br/>¿Cómo responde a la hija?"}}:::decision
+    a1_o1["Opción 1: pregunta por el colegio<br/>Hija: «Ya casi termino y puedo entrar a la universidad»<br/>«Ya me cansé de que trabajes hasta tan tarde»"]:::scene
+    a1_o2["Opción 2: «Tengo que salir ya, voy muy tarde»<br/>Hija indignada: «Mi papá está actuando muy raro»"]:::scene
+    a1_t1["Calle (transición): va en carro al casino<br/>Vagabundo: «¿Usted de nuevo? ¿Por qué va todos los días al casino?»"]:::scene
+    a1_c["Casino: sin interacciones, solo se mueve entre juegos"]:::scene
+    a1_g{{"DECISIÓN 1.2<br/>¿Cuántos juegos juega?"}}:::decision
+    a1_x3["Juega 3 juegos (x3)"]:::scene
+    a1_t2["Calle de regreso<br/>Vagabundo: «Tenga cuidado por favor, las apuestas son peligrosas»"]:::scene
+    a1_h{{"DECISIÓN 1.3 · Ya en casa<br/>¿Trabajar o estar con la familia?"}}:::decision
+    a1_w["Trabaja: gana una tasa fija de dinero<br/>Salto a la noche · fin del día"]:::scene
+    a1_f["Esposa: «Qué bueno que llegaste temprano»<br/>Hija: «Ya era hora» · fin del día"]:::scene
+    a1_x6["Juega 6 juegos (x6)<br/>Todo el día en el casino"]:::scene
+    a1_t3["Calle de noche<br/>El vagabundo ya está dormido"]:::scene
+    a1_e6["Llega a casa, todos duermen<br/>Fin del día (sin interacciones)"]:::scene
+    e1A(["N1 = A<br/>x3 + tiempo con la familia"]):::state
+    e1B(["N1 = B<br/>x3 + trabajó"]):::state
+    e1C(["N1 = C<br/>x6"]):::state
+  end
+  subgraph DIA2["Día 2"]
+    direction TB
+    b2_fam["Mañana · Sala<br/>Esposa: «Qué bueno que llegaste temprano anoche»<br/>Hija: «Te extraño cuando no estás»"]:::scene
+    b2_nof["Mañana · Sala<br/>Esposa: «¿Mucho trabajo anoche?»<br/>Protagonista: «Sí, lo siento de nuevo»<br/>Hija: «Ya se está volviendo costumbre»<br/>(no hay posibilidad de ganar puntos)"]:::scene
+    b2_dh{{"DECISIÓN 2.1<br/>Respuesta a la hija"}}:::decision
+    b2_oa["Opción 1: «Yo también, pequeña, ya era hora de compartir. Lo siento por no estar tan presente»<br/>Hija: «Gracias»"]:::scene
+    b2_ob["Opción 2: «No prometo poder hacerlo seguido, tengo mucho trabajo»<br/>Hija: «Okay.»"]:::scene
+    b2_go["El protagonista sale al casino"]:::scene
+    b2_vc{"¿N1 es A o B?<br/>(el vagabundo lo vio pasar ayer: x3)"}:::cond
+    b2_v1["Vagabundo: «¿Otro día más para el casino? Esto se está volviendo un hábito»<br/>Protagonista: «Por favor no se meta»"]:::scene
+    b2_v2["Vagabundo: «Señor, no lo vi anoche, cuidado con esas noches de juego sin fin»<br/>Protagonista: «Por favor no se meta»"]:::scene
+    b2_cas["Llega al casino"]:::scene
+    b2_g{{"DECISIÓN 2.2<br/>¿Cuántos juegos juega?"}}:::decision
+    b2_x3["Juega 3 juegos (x3)<br/>El vagabundo lo ve pasar pero no le dice nada"]:::scene
+    b2_x6["Juega 6 juegos (x6)<br/>El vagabundo ya está dormido"]:::scene
+    b2_h{{"DECISIÓN 2.3 · Ya en casa<br/>¿Trabajar o pasar tiempo en familia?"}}:::decision
+    b2_w["Trabaja: gana la cantidad fija<br/>Salto al siguiente día"]:::scene
+    b2_f["Pasa tiempo en familia<br/>Salto al siguiente día"]:::scene
+    b2_e6["Llega a casa, todos duermen<br/>El día acaba"]:::scene
+    e2A(["N2 = A<br/>x3 + tiempo con la familia"]):::state
+    e2B(["N2 = B<br/>x3 + trabajó"]):::state
+    e2C(["N2 = C<br/>x6"]):::state
+  end
+  subgraph DIA3["Día 3"]
+    direction TB
+    c3_fam["Esposa: «Me gusta que hayas llegado temprano. Voy a hacer el desayuno de la niña»<br/>Hija: «Hoy tengo un evento en el colegio. Deséame suerte»"]:::scene
+    c3_dh{{"DECISIÓN 3.1<br/>Respuesta a la hija"}}:::decision
+    c3_oa["Opción 1: «Que te vaya bien hija, me cuentas cómo te fue»<br/>Hija: «Gracias papá»"]:::scene
+    c3_ob["Opción 2: «Qué bueno, pero tengo que irme ya, voy tarde al trabajo»"]:::scene
+    c3_m2{"¿Dos días seguidos sin familia?<br/>N1 es B o C, y N2 es B o C"}:::cond
+    c3_dos["Esposa: «Me estoy cansando de que llegues tarde, ya no es normal. ¿Qué está pasando?»<br/>Protagonista: «Nada cariño, tengo mucho trabajo»<br/>Hija: «¿Por qué sigues llegando tarde? ¿Qué te pasa?»"]:::scene
+    c3_uno["Esposa: «Sé que solo fue ayer, pero por favor llega temprano hoy»<br/>Hija: «¿Mucho trabajo anoche?»<br/>Protagonista: «Sí hija, lo siento, trataré de llegar más temprano»<br/>(sin decisión)"]:::scene
+    c3_dd{{"DECISIÓN 3.1b<br/>Respuesta a la hija"}}:::decision
+    c3_da["Opción 1: «¿Tú también estás brava conmigo? Ya tengo suficiente con tu madre»<br/>Hija: «Ush, esto ya no es normal»"]:::scene
+    c3_db["Opción 2: «Lo sé hija, trataré de llegar más temprano hoy»<br/>Hija: «Eso espero, pero deséame suerte»"]:::scene
+    c3_go["El protagonista sale al casino"]:::scene
+    c3_vc{"¿N2 es A o B?<br/>(el vagabundo lo vio volver a casa ayer: x3)"}:::cond
+    c3_v1["Vagabundo: «Buenos días señor, ¿cómo va el día?»<br/>Protagonista: «Podría ir mejor»"]:::scene
+    c3_vc2{"¿N1 = C y N2 = C?<br/>(dos noches seguidas x6)"}:::cond
+    c3_v2["Vagabundo: «No quiero entrometerme, pero tenga cuidado con las apuestas. Me costaron todo a mí»<br/>Protagonista: «Ya es muy tarde, tengo muchas deudas»"]:::scene
+    c3_v3["Vagabundo: «Buenos días, señor. Cuídese.»"]:::scene
+    c3_cas["Llega al casino"]:::scene
+    c3_g{{"DECISIÓN 3.2<br/>¿Cuántos juegos juega?"}}:::decision
+    c3_x3["Juega 3 juegos (x3) y regresa a casa<br/>El vagabundo no le dice nada<br/>Esposa e hija lo reciben · cena: pasta bolognesa"]:::scene
+    c3_x6["Juega 6 juegos (x6)<br/>Llega a casa, todos duermen"]:::scene
+    c3_p3{{"DECISIÓN 3.3 · Pop-up<br/>¿Vender el carro para pagar la deuda?"}}:::decision
+    c3_p6{{"DECISIÓN 3.3 · Pop-up (sin diálogo)<br/>¿Vender el carro para pagar la deuda?"}}:::decision
+    c3_vs["Conversación con la esposa:<br/>«Deberíamos vender el carro»<br/>Esposa: «No estoy de acuerdo»<br/>Protagonista: «Lo voy a vender, te guste o no»<br/>Esposa: «Cada día me preocupa más tu comportamiento»"]:::scene
+    c3_nv["El día termina sin más interacciones"]:::scene
+    e3A(["N3 = A<br/>x3 + vendió el carro<br/>(la esposa YA lo sabe)"]):::state
+    e3B(["N3 = B<br/>x3 + conservó el carro"]):::state
+    e3C(["N3 = C<br/>x6 + vendió el carro<br/>(la esposa NO lo sabe)"]):::state
+    e3D(["N3 = D<br/>x6 + conservó el carro"]):::state
+  end
+  subgraph DIA4["Día 4"]
+    direction TB
+    d4_mA["Esposa: «No estoy de acuerdo con lo que vas a hacer, pero espero te den buen dinero». Sale al mercado<br/>Hija: «Escuché que vas a vender el carro. ¿Para qué necesitas tanta plata?»<br/>Protagonista: «Una deuda vieja, todo mejorará»"]:::scene
+    d4_mC["Protagonista confiesa: «He decidido vender el carro, necesito pagar una deuda vieja que no te había contado»<br/>Esposa: «Mentiroso, debiste decírmelo»<br/>«Si esto sigue así, tendré que dejarte»"]:::scene
+    d4_mN["Esposa: «Voy al mercado a comprar unas cosas que nos faltan»<br/>Hija: «Tengo que salir rápido, voy tarde y me va a dejar el bus»<br/>Protagonista: «Que te vaya bien»"]:::scene
+    d4_go["El protagonista sale al casino (a pie si vendió el carro)"]:::scene
+    d4_vc{"¿N3 es C o D?<br/>(hizo x6 ayer: el vagabundo no lo vio)"}:::cond
+    d4_vag["Vagabundo: «Me está preocupando. Anoche pasó mucho tiempo en ese casino. Así terminé yo, y ya puede ver las consecuencias»"]:::scene
+    d4_cv{"¿Vendió el carro?<br/>(N3 = C)"}:::cond
+    d4_v1["Protagonista: «Ya es muy tarde, tuve que vender mi carro para pagarle una deuda a un gota a gota»<br/>Vagabundo: «Algo parecido me pasó… Por eso estoy aquí, una advertencia para personas perdidas como usted»"]:::scene
+    d4_v2["Protagonista: «No me queda de otra, tengo que pagar una deuda»<br/>Vagabundo: «Así les pasa a muchos, pero si no cambia, terminará como yo»"]:::scene
+    d4_v3["Vagabundo: «Me preocupa verlo todos los días en el casino»<br/>Protagonista: «Lo sé, pero no me queda otra opción. Tengo que pagar una deuda muy muy grande»"]:::scene
+    d4_g{{"DECISIÓN 4.1<br/>¿Cuántos juegos juega?"}}:::decision
+    d4_x3["Juega 3 juegos (x3)<br/>Sale y no encuentra al vagabundo"]:::scene
+    d4_x6["Juega 6 juegos (x6)<br/>La esposa lo espera despierta: ocurre lo mismo que en x3"]:::scene
+    d4_conf["Confrontación en casa<br/>Esposa: «¿Qué te pasa? Eres un cobarde y un mentiroso». El vagabundo le contó que va todos los días a jugar<br/>Protagonista: «Está bien, sí, ¿y qué pasa?»"]:::scene
+    d4_cc{"¿Vendió el carro?<br/>(N3 es A o C; sin importar cuándo se enteró la esposa)"}:::cond
+    d4_si["Esposa: «Estoy segura de que esa deuda es por apostar»<br/>Protagonista: «No, la saqué para empezar mi negocio»<br/>Esposa: «Más te vale»"]:::scene
+    d4_no["Esposa: «Estás adicto a las apuestas»<br/>Protagonista: «Tengo una gran deuda, voy al casino a recuperar dinero»<br/>Esposa: «La casa siempre gana. Tienes que trabajar más»"]:::scene
+    d4_dd{{"DECISIÓN 4.2<br/>Respuesta a la esposa"}}:::decision
+    d4_o1["Opción 1: «No hay marcha atrás, soy buen jugador, puedo ganar el dinero de vuelta»<br/>Esposa: «Eso decías cuando apostabas en línea»"]:::scene
+    d4_o2["Opción 2: «Tienes razón, mañana iré a trabajar todo el día»<br/>Esposa: «Mañana iré donde el vagabundo de nuevo, y si vas al casino, lo sabré»"]:::scene
+    e4(["Fin del Día 4"]):::state
+  end
+  subgraph DIA5["Día 5"]
+    direction TB
+    e5_s["Mañana · La esposa no le dice nada (está brava)<br/>Hija: «Mi mamá me contó todo. Eres un mentiroso»<br/>Protagonista: «Lo siento, es mi culpa»<br/>Hija: «Más te vale sacarnos de ésta»"]:::scene
+    e5_d{{"DECISIÓN 5.1<br/>¿Trabajar o ir al casino?"}}:::decision
+    e5_w["Trabaja · salto a la noche<br/>Gana una tasa fija de dinero"]:::scene
+    e5_cas["Espacio intermedio: el vagabundo no está<br/>Entra al casino"]:::scene
+    e5_g{{"DECISIÓN 5.2<br/>¿Cuántos juegos juega?"}}:::decision
+    e5_p{{"DECISIÓN 5.3 · Pop-up financiero<br/>¿Hipotecar la casa, usar los ahorros de la universidad de la hija, o ninguna?"}}:::decision
+    e5_h["Hipoteca la casa<br/>Protagonista confiesa: «No más mentiras, estoy endeudado por el juego»<br/>Esposa: «Mañana empiezo a empacar, me voy donde mi madre»"]:::scene
+    e5_a["Usa el seguro universitario de la hija<br/>Protagonista: «Tengo una adicción a las apuestas»<br/>Hija: «Nunca te voy a perdonar. Espero termines en la calle»"]:::scene
+    e5_n["Ninguna · el día acaba (sin cambios en PF)"]:::scene
+    e5A(["N5 = A<br/>hipotecó la casa"]):::state
+    e5B(["N5 = B<br/>usó ahorros de la hija"]):::state
+    e5C(["N5 = C<br/>no usó ninguna"]):::state
+  end
+  subgraph DIA6["Día 6 (opcional)"]
+    direction TB
+    f6_q{{"DECISIÓN 6.1<br/>¿Juega un día extra (Día 6)?"}}:::decision
+    f6_c["Ciclo del Día 6: casa → transición → casino → transición → casa<br/>Sin interacciones con esposa, hija ni vagabundo (no tiene árbol de decisiones)<br/>Al llegar a casa (x3 o x6) se acaba el día y el juego"]:::scene
+  end
+  subgraph FINALES["Finales"]
+    direction TB
+    g_ev{"¿Qué % de la deuda se pagó?"}:::cond
+    g_f1[["FINAL 1 · Trágico<br/>Salto 1 día: casa vacía, luces apagadas, nadie responde<br/>«El gota a gota se las llevó. Todo es mi culpa»<br/>Salto 1 mes: mendigo junto al vagabundo, ropa rota<br/>«Debí hacerle caso a usted y a mi esposa»"]]:::final
+    g_c{"¿Cumplió el umbral de puntos de familia?"}:::cond
+    g_f2[["FINAL 2<br/>Salto 1 año · narra el protagonista<br/>Casi paga la deuda, pero el gota a gota le saca un riñón; la familia lo deja y la esposa lo odia; el negocio quiebra; trabaja en McDonalds<br/>La hija no lo odia del todo: a veces hablan"]]:::final
+    g_f3[["FINAL 3<br/>Salto 1 año · narra el protagonista<br/>Igual que el Final 2, pero la esposa Y la hija lo odian"]]:::final
+    g_j{"¿Jugó el Día 6?"}:::cond
+    g_f4[["FINAL 4 · 100% de la deuda paga<br/>En el casino elige un juego: 0% de probabilidad de ganar<br/>Narra: pagó la deuda pero lo perdió todo otra vez; la familia lo odia; el negocio quebró; trabaja en McDonalds"]]:::final
+    g_f5[["FINAL 5 · Día 6 jugado<br/>Tras el ciclo del Día 6, el protagonista narra el mismo cierre del Final 4:<br/>pagó la deuda pero lo perdió todo otra vez"]]:::final
+  end
+
+  intro --> a1_s0
+  a1_s0 --> a1_s1
+  a1_s1 --> a1_d1
+  a1_d1 -->|"Opción 1 · +PF"| a1_o1
+  a1_d1 -->|"Opción 2 · sin puntos"| a1_o2
+  a1_o1 --> a1_t1
+  a1_o2 --> a1_t1
+  a1_t1 --> a1_c
+  a1_c --> a1_g
+  a1_g -->|"Opción 1: x3"| a1_x3
+  a1_g -->|"Opción 2: x6"| a1_x6
+  a1_x3 --> a1_t2
+  a1_t2 --> a1_h
+  a1_h -->|"Opción 1: trabajar · sin PF"| a1_w
+  a1_h -->|"Opción 2: familia · +PF"| a1_f
+  a1_w --> e1B
+  a1_f --> e1A
+  a1_x6 --> a1_t3
+  a1_t3 --> a1_e6
+  a1_e6 --> e1C
+  e1A -->|"N1 = A"| b2_fam
+  e1B -->|"N1 = B"| b2_nof
+  e1C -->|"N1 = C"| b2_nof
+  b2_fam --> b2_dh
+  b2_dh -->|"Opción 1 · +PF"| b2_oa
+  b2_dh -->|"Opción 2 · sin puntos"| b2_ob
+  b2_oa --> b2_go
+  b2_ob --> b2_go
+  b2_nof --> b2_go
+  b2_go --> b2_vc
+  b2_vc -->|"SÍ"| b2_v1
+  b2_vc -->|"NO (N1 = C)"| b2_v2
+  b2_v1 --> b2_cas
+  b2_v2 --> b2_cas
+  b2_cas --> b2_g
+  b2_g -->|"Opción 1: x3"| b2_x3
+  b2_g -->|"Opción 2: x6"| b2_x6
+  b2_x3 --> b2_h
+  b2_h -->|"Opción 1: trabajar · sin PF"| b2_w
+  b2_h -->|"Opción 2: familia · +PF"| b2_f
+  b2_w --> e2B
+  b2_f --> e2A
+  b2_x6 --> b2_e6
+  b2_e6 --> e2C
+  e2A -->|"N2 = A"| c3_fam
+  e2B -->|"N2 = B"| c3_m2
+  e2C -->|"N2 = C"| c3_m2
+  c3_fam --> c3_dh
+  c3_dh -->|"Opción 1 · +PF"| c3_oa
+  c3_dh -->|"Opción 2"| c3_ob
+  c3_m2 -->|"SÍ"| c3_dos
+  c3_m2 -->|"NO (N1 = A)"| c3_uno
+  c3_dos --> c3_dd
+  c3_dd -->|"Opción 1 · -PF"| c3_da
+  c3_dd -->|"Opción 2 · sin cambio en PF"| c3_db
+  c3_oa --> c3_go
+  c3_ob --> c3_go
+  c3_da --> c3_go
+  c3_db --> c3_go
+  c3_uno --> c3_go
+  c3_go --> c3_vc
+  c3_vc -->|"SÍ"| c3_v1
+  c3_vc -->|"NO (N2 = C)"| c3_vc2
+  c3_vc2 -->|"SÍ"| c3_v2
+  c3_vc2 -->|"NO"| c3_v3
+  c3_v1 --> c3_cas
+  c3_v2 --> c3_cas
+  c3_v3 --> c3_cas
+  c3_cas --> c3_g
+  c3_g -->|"Opción 1: x3"| c3_x3
+  c3_g -->|"Opción 2: x6"| c3_x6
+  c3_x3 --> c3_p3
+  c3_x6 --> c3_p6
+  c3_p3 -->|"Sí vende · -PF"| c3_vs
+  c3_p3 -->|"No vende"| c3_nv
+  c3_vs --> e3A
+  c3_nv --> e3B
+  c3_p6 -->|"Sí vende"| e3C
+  c3_p6 -->|"No vende"| e3D
+  e3A -->|"N3 = A · Opción 1"| d4_mA
+  e3C -->|"N3 = C · Opción 2 · -PF"| d4_mC
+  e3B -->|"N3 = B · Opción 3"| d4_mN
+  e3D -->|"N3 = D · Opción 3"| d4_mN
+  d4_mA --> d4_go
+  d4_mC --> d4_go
+  d4_mN --> d4_go
+  d4_go --> d4_vc
+  d4_vc -->|"SÍ"| d4_vag
+  d4_vc -->|"NO (N3 es A o B)"| d4_v3
+  d4_vag --> d4_cv
+  d4_cv -->|"SÍ (N3 = C)"| d4_v1
+  d4_cv -->|"NO (N3 = D)"| d4_v2
+  d4_v1 --> d4_g
+  d4_v2 --> d4_g
+  d4_v3 --> d4_g
+  d4_g -->|"Opción 1: x3"| d4_x3
+  d4_g -->|"Opción 2: x6"| d4_x6
+  d4_x3 --> d4_conf
+  d4_x6 --> d4_conf
+  d4_conf --> d4_cc
+  d4_cc -->|"SÍ"| d4_si
+  d4_cc -->|"NO"| d4_no
+  d4_no --> d4_dd
+  d4_dd -->|"Opción 1 · -PF"| d4_o1
+  d4_dd -->|"Opción 2 · PF sin cambio"| d4_o2
+  d4_si --> e4
+  d4_o1 --> e4
+  d4_o2 --> e4
+  e4 --> e5_s
+  e5_s --> e5_d
+  e5_d -->|"Opción 1: trabajar"| e5_w
+  e5_d -->|"Opción 2: casino"| e5_cas
+  e5_cas --> e5_g
+  e5_w --> e5_p
+  e5_g -->|"Opción 1: x3 · igual que si trabajó"| e5_p
+  e5_g -->|"Opción 2: x6 · igual, pero despierta a la esposa si hipoteca o a la hija si usa los ahorros"| e5_p
+  e5_p -->|"Hipotecar · -PF"| e5_h
+  e5_p -->|"Ahorros de la hija · -PF"| e5_a
+  e5_p -->|"Ninguna"| e5_n
+  e5_h --> e5A
+  e5_a --> e5B
+  e5_n --> e5C
+  e5A --> f6_q
+  e5B --> f6_q
+  e5C --> f6_q
+  f6_q -->|"Sí"| f6_c
+  f6_q -->|"No"| g_ev
+  f6_c --> g_ev
+  g_ev -->|"Menos de 50%"| g_f1
+  g_ev -->|"Más de 50% y menos de 100%"| g_c
+  g_ev -->|"100%"| g_j
+  g_c -->|"SÍ"| g_f2
+  g_c -->|"NO"| g_f3
+  g_j -->|"SÍ"| g_f5
+  g_j -->|"NO"| g_f4
+
+    classDef scene fill:#F1F5F9,stroke:#475569,color:#0f172a
+    classDef intro fill:#E0F2FE,stroke:#0369A1,color:#0c4a6e
+    classDef decision fill:#FEF3C7,stroke:#B45309,stroke-width:2px,color:#451a03
+    classDef cond fill:#DBEAFE,stroke:#1D4ED8,color:#0b1f4d
+    classDef state fill:#EDE9FE,stroke:#6D28D9,stroke-width:2px,color:#2e1065
+    classDef final fill:#1F2937,stroke:#111827,color:#ffffff
+
+  linkStyle 3,14,24,39,48 stroke:#15803D,stroke-width:2px
+  linkStyle 53,73,80,103,116,117 stroke:#B91C1C,stroke-width:2px
