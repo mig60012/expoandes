@@ -33,4 +33,4 @@ Si es tu primera vez en el proyecto, lee estos documentos en orden:
 
 ## Estado actual
 
-`casa` es el estado inicial y contiene una entidad de jugador de prueba. Los estados `casino`, `transicion` y `animacion` son esqueletos preparados para ser desarrollados cuando se defina el diseño final del juego.
+`transicion` es el estado inicial actual y contiene la demostración del sistema de diálogo ramificado. Los estados `casa`, `casino` y `animacion` siguen preparados para ser desarrollados cuando se defina el diseño final del juego.
