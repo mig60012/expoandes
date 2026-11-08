@@ -21,3 +21,7 @@ end
 function love.keyreleased(key, scancode)
   Game.keyreleased(key, scancode)
 end
+
+function love.mousepressed(x, y, button, istouch, presses)
+  Game.mousepressed(x, y, button, istouch, presses)
+end

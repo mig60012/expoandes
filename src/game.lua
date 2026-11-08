@@ -46,4 +46,8 @@ function Game.keyreleased(key, scancode)
   StateMachine:keyreleased(key, scancode)
 end
 
+function Game.mousepressed(x, y, button, istouch, presses)
+  StateMachine:mousepressed(x, y, button, istouch, presses)
+end
+
 return Game
