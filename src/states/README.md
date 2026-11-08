@@ -58,6 +58,8 @@ No importes directamente otro estado para cambiar de pantalla. Usa la máquina d
 
 - Inicializa los datos en `enter`, no al cargar el archivo.
 - Mantén el estado responsable de su propia pantalla.
-- Extrae a `entities/` los objetos grandes, como el jugador.
 - Extrae a `systems/` las reglas que puedan reutilizarse en varias pantallas.
+- Si un estado utiliza diálogos, coloca su interacción y dibujo en un módulo
+  propio dentro de su carpeta. Reutiliza `src/systems/dialogue.lua` para la
+  lógica narrativa común.
 - No uses `love.graphics` dentro de sistemas que solo representan reglas.

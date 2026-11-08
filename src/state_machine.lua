@@ -8,12 +8,6 @@ local state_machine = {
   last = nil,
 }
 
-local contexto_inicial = {
-  economy = require("src/systems/economy"),
-  day = 0,
-  time_of_day = 0
-}
-
 -- Aqui se cargan todos los States
 function state_machine.load(context)
   state_machine.states = {

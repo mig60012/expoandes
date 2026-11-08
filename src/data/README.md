@@ -11,4 +11,28 @@ print(intro:current_line())
 intro:next()
 ```
 
-Una línea del archivo representa una línea de diálogo. Si en el futuro se necesitan personajes, decisiones o efectos, primero hay que acordar un formato simple y documentarlo antes de cambiar el lector.
+Los archivos `.txt` antiguos siguen representando una línea por diálogo. Para decisiones se utilizan archivos `.lua` que devuelven una tabla de nodos:
+
+```lua
+return {
+  start = "inicio",
+  nodes = {
+    inicio = {
+      speaker = "Guía",
+      text = "¿Quieres continuar?",
+      choices = {
+        {
+          text = "Sí",
+          next = "final",
+          effects = {
+            { type = "set_flag", key = "car_sold", value = true },
+          },
+        },
+      },
+    },
+    final = { text = "La conversación terminó.", ending = true },
+  },
+}
+```
+
+Una opción puede incluir `condition`, `effects` y `next`. `Dialogue` consulta las condiciones y delega las consecuencias en los sistemas independientes de decisiones.

@@ -2,12 +2,28 @@
 
 local StateMachine = require("src/state_machine")
 local Economy = require("src/systems/economy")
+local Progress = require("src/systems/progress")
 
 local Game = {}
 
 function Game.load()
   Game.context = {
     economy = Economy.new(),
+    progress = Progress.new({
+      flags = {
+        car_sold = false,
+        house_mortgaged = false,
+        wife_knows_about_bets = false,
+        daughter_savings_used = false,
+        homeless_man_saw_player = false,
+      },
+      values = {
+        family_points = 0,
+        debt_percentage = 0,
+        casino_games_today = 0,
+        casino_wins = 0,
+      },
+    }),
     state_machine = StateMachine,
   }
 

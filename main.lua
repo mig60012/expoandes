@@ -14,10 +14,10 @@ function love.draw()
   Game.draw()
 end
 
-function love.keypressed(key)
-  Game.keypressed(key)
+function love.keypressed(key, scancode, isrepeat)
+  Game.keypressed(key, scancode, isrepeat)
 end
 
-function love.keyreleased(key)
-  Game.keyreleased(key)
+function love.keyreleased(key, scancode)
+  Game.keyreleased(key, scancode)
 end
