@@ -1,4 +1,5 @@
 assert(loadfile("tests/test_decisions.lua"))()
 assert(loadfile("tests/test_dialogue.lua"))()
 assert(loadfile("src/states/casino/pruebas/test_colision.lua"))()
+assert(loadfile("src/states/casino/pruebas/test_plano.lua"))()
 print("all tests: ok")
