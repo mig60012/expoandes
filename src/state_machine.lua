@@ -11,6 +11,7 @@ local state_machine = {
 -- Aqui se cargan todos los States
 function state_machine.load(context)
   state_machine.states = {
+    inicio = require("src/states/casino/pruebas/Inicio"),
     casa = require("src/states/casa"),
     trabajo = require("src/states/trabajo"),
     casino = require("src/states/casino"),
@@ -20,7 +21,7 @@ function state_machine.load(context)
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  state_machine:switch("casa")
+  state_machine:switch("inicio")
 end
 
 function state_machine:switch(name, ...)

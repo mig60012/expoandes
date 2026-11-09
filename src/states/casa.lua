@@ -138,12 +138,12 @@ function Casa:enter(context)
   self.objetos = {
     {
       -- Puerta: a la derecha
-      id = "puerta", nombre = "Puerta (ir al casino)", sprite = "puerta",
+      id = "puerta", nombre = "Puerta (ir a la transicion)", sprite = "puerta",
       x = 1090, y = 280, w = 130, h = 250,
       color = { 0.50, 0.30, 0.15 },
       accion = function(casa)
-        -- Cambia de estado: sale de la casa y va al casino
-        casa.context.state_machine:switch("casino")
+        -- Cambia de estado: sale de la casa y va a la transicion
+        casa.context.state_machine:switch("transicion")
       end,
     },
     {

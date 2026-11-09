@@ -1,12 +1,13 @@
 local Trabajo = {}
 
 local DURACION = 5
+local RUTA_FUENTE = "assets/transicion/Inicio/Asset-Regular.ttf"
 
 function Trabajo:enter(context)
 	self.context = context
 	self.tiempo = 0
-	self.fuente = love.graphics.newFont(32)
-	self.fuente_chica = love.graphics.newFont(18)
+	self.fuente = love.graphics.newFont(RUTA_FUENTE, 32)
+	self.fuente_chica = love.graphics.newFont(RUTA_FUENTE, 18)
 end
 
 function Trabajo:update(dt)
@@ -28,7 +29,7 @@ function Trabajo:draw()
 
 	love.graphics.setColor(1, 1, 1)
 	love.graphics.setFont(self.fuente)
-	love.graphics.printf("Se fue al trabajo", 0, alto / 2 - 24, ancho, "center")
+	love.graphics.printf("Trabajando", 0, alto / 2 - 24, ancho, "center")
 
 	love.graphics.setColor(0.55, 0.55, 0.6)
 	love.graphics.setFont(self.fuente_chica)
