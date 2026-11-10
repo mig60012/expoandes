@@ -12,4 +12,8 @@ function Apuesta.new(opciones)
   }, Apuesta)
 end
 
+function Apuesta:cambiar(cantidad)
+  self.monto = math.max(self.minimo, math.min(self.maximo, self.monto + cantidad))
+end
+
 return Apuesta
