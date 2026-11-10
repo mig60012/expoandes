@@ -60,6 +60,11 @@ local allowed, err = Conditions.evaluate(condition, context)
 
 Los datos narrativos pueden utilizar estos módulos, pero no contienen funciones ejecutables. Una opción puede tener `condition`, `effects` y `next`; primero se verifica que esté disponible, después se validan y aplican sus efectos y finalmente se avanza al nodo.
 
+Los nodos que dependen de una condición automática pueden utilizar `routes` en
+lugar de `choices`. Las rutas se evalúan en orden y la primera válida decide el
+siguiente nodo. Esto representa rombos del diagrama narrativo sin mostrar una
+elección artificial al jugador.
+
 ## Dependencias permitidas
 
 - `main.lua` conoce a `Game`.

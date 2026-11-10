@@ -12,10 +12,21 @@ end
 function Progress.new(defaults)
   defaults = defaults or {}
 
-  return setmetatable({
-    flags = copy_values(defaults.flags),
-    values = copy_values(defaults.values),
+  local progress = setmetatable({
+    defaults = {
+      flags = copy_values(defaults.flags),
+      values = copy_values(defaults.values),
+    },
+    flags = {},
+    values = {},
   }, Progress)
+  progress:reset()
+  return progress
+end
+
+function Progress:reset()
+  self.flags = copy_values(self.defaults.flags)
+  self.values = copy_values(self.defaults.values)
 end
 
 function Progress:has_flag(key)

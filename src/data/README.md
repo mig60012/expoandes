@@ -36,3 +36,28 @@ return {
 ```
 
 Una opción puede incluir `condition`, `effects` y `next`. `Dialogue` consulta las condiciones y delega las consecuencias en los sistemas independientes de decisiones.
+
+## Rutas automáticas
+
+Para una condición del guion que no debe convertirse en una elección visible,
+se puede utilizar `routes`:
+
+```lua
+evaluar_familia = {
+  routes = {
+    {
+      condition = {
+        type = "value",
+        key = "family_points",
+        operator = ">=",
+        value = 5,
+      },
+      next = "familia_cerca",
+    },
+    { next = "familia_distante" },
+  },
+}
+```
+
+El orden importa: la primera ruta válida se utiliza. La última ruta suele ser
+la opción por defecto y no necesita condición.

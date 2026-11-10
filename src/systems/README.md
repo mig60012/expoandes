@@ -9,6 +9,7 @@ Ejemplos actuales:
 - `decisions/conditions.lua`: consulta condiciones sin modificar el juego.
 - `decisions/effects.lua`: aplica consecuencias al progreso o a la economía.
 - `dialogue.lua`: carga y recorre líneas o nodos de diálogo.
+- `dialogue_validator.lua`: comprueba referencias y estructura de los datos narrativos.
 
 ## Crear un sistema
 
@@ -39,3 +40,36 @@ Un sistema debe poder probarse o entenderse sin conocer qué estado lo está usa
 Las condiciones devuelven `resultado, error`. Un error siempre produce `false`; nunca se interpreta como una condición verdadera. Los efectos devuelven `true` si se aplicaron o `false, error` si no pudieron aplicarse.
 
 Los efectos de dinero utilizan exclusivamente `context.economy`. El dinero no se duplica dentro de `Progress`.
+
+## Rutas automáticas
+
+Un nodo puede utilizar `routes` cuando el jugador no debe elegir y el juego
+debe continuar según el progreso:
+
+```lua
+router = {
+  routes = {
+    {
+      condition = {
+        type = "value",
+        key = "family_points",
+        operator = ">=",
+        value = 5,
+      },
+      next = "familia_unida",
+    },
+    { next = "familia_distante" }, -- ruta por defecto
+  },
+}
+```
+
+Las rutas se revisan en orden y se utiliza la primera que cumpla su condición.
+Una ruta sin `condition` funciona como alternativa por defecto. No debe
+colocarse `choices` y `routes` en el mismo nodo.
+
+Al cargar un diálogo, `dialogue_validator.lua` comprueba que los destinos
+referenciados existan. Esto permite detectar errores de escritura antes de
+que el jugador llegue a esa parte de la historia.
+
+`Progress:reset()` restaura los valores iniciales de la partida. Es útil para
+reiniciar una partida y para preparar escenarios de prueba.
