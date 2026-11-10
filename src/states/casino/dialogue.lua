@@ -30,7 +30,7 @@ function VistaDialogo:keypressed(tecla)
 end
 
 function VistaDialogo:draw(ancho, alto, fuente)
-  local margen, caja = alto * 0.04, alto * 0.2
+  local margen, caja = alto * 0.04, alto * 0.25
   local x, y, w = margen, alto - caja - margen, ancho - margen * 2
   local renglon = fuente:getHeight() * 1.35
   love.graphics.setColor(FONDO)

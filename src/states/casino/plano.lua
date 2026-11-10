@@ -54,7 +54,7 @@ local Plano = {
   alto = 1350,
   vista = { ancho = 1536, alto = 864 },
   estiramiento = 2,
-  jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 64, alto = 150 },
+  jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 84, alto = 150 },
   suelo = { 24, 988, 1200, 400, 2376, 988, 2376, 1338, 24, 1338 },
   paredes = {
     izquierda = { 0, 0, 1200, 0, 1200, 400, 0, 1000 },
