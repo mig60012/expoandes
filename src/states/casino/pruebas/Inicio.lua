@@ -86,8 +86,6 @@ function Inicio:draw()
 		love.graphics.draw(self.fondo, (ancho - fondo_ancho) / 2, (alto - fondo_alto) / 2, 0, escala, escala)
 	end
 
-	love.graphics.setColor(0, 0, 0, 0.35)
-	love.graphics.rectangle("fill", 0, 0, ancho, alto)
 
 	love.graphics.setColor(0, 0, 0)
 	love.graphics.setFont(self.fuente_titulo)

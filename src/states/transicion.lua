@@ -1,6 +1,6 @@
 local transicion = {}
 local player = love.graphics.newImage("assets/ugandan_knuckles.png")
-local background = love.graphics.newImage("assets/transicion/background.png")
+local background = love.graphics.newImage("assets/transicion/manana_tarde.PNG")
 local player_pos = 0
 local DialogueView = require("src/states/transicion/dialogue")
 
