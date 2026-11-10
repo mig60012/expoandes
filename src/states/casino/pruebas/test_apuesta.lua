@@ -25,4 +25,32 @@ assert(apuesta.monto == 5, "el salto grande baja completo si cabe")
 apuesta:cambiar(-10)
 assert(apuesta.monto == 2, "el salto grande se detiene en el minimo")
 
+local confirmado, cancelado
+
+local function con_avisos()
+  confirmado, cancelado = nil, nil
+  return Apuesta.new({
+    minimo = 2,
+    dinero = 15,
+    al_confirmar = function(monto)
+      confirmado = monto
+    end,
+    al_cancelar = function()
+      cancelado = true
+    end,
+  })
+end
+
+apuesta = con_avisos()
+apuesta:cambiar(3)
+apuesta:confirmar()
+assert(confirmado == 5, "confirmar avisa el monto elegido")
+assert(not cancelado, "confirmar no cancela")
+
+apuesta = con_avisos()
+apuesta:cambiar(3)
+apuesta:cancelar()
+assert(cancelado, "cancelar avisa que no hubo apuesta")
+assert(confirmado == nil, "cancelar no confirma ningun monto")
+
 print("test_apuesta: ok")
