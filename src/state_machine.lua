@@ -20,7 +20,7 @@ function state_machine.load(context)
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  state_machine:switch("casa")
+  state_machine:switch("transicion")
 end
 
 function state_machine:switch(name, ...)

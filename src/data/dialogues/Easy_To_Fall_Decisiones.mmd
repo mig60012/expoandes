@@ -1,6 +1,6 @@
 %% =====================================================================
 %% EASY TO FALL · SISTEMA DE DECISIONES (Mermaid flowchart)
-%% Fuente: Historia_Easy_To_Fall_9a41bd.docx
+%% Fuente: Historia_Easy_To_Fall_134d13.docx
 %% ---------------------------------------------------------------------
 %% FORMAS
 %%   Rectángulo = escena o diálogo (sin decisión)
@@ -16,6 +16,7 @@
 %%   N3 = A: x3 + vendió carro (esposa ya sabe) | B: x3 + conservó
 %%        C: x6 + vendió carro (esposa no sabe) | D: x6 + conservó
 %%   N5 = A: hipotecó la casa | B: usó ahorros de la hija | C: ninguna
+%%   Monólogos internos: «Protagonista (a sí mismo)», dentro de la escena donde ocurren
 %%   Los valores numéricos de PF y el cálculo del % de deuda dependen
 %%   de las mecánicas del juego (no se definen en el guion).
 %% ===================================================================== 
@@ -36,28 +37,28 @@ flowchart TD
     a1_c["Casino: sin interacciones, solo se mueve entre juegos"]:::scene
     a1_g{{"DECISIÓN 1.2<br/>¿Cuántos juegos juega?"}}:::decision
     a1_x3["Juega 3 juegos (x3)"]:::scene
-    a1_t2["Calle de regreso<br/>Vagabundo: «Tenga cuidado por favor, las apuestas son peligrosas»"]:::scene
+    a1_t2["Calle de regreso<br/>Vagabundo: «Tenga cuidado por favor, las apuestas son peligrosas»<br/>El protagonista lo ignora y se dice a sí mismo: «Necesito dinero ya, el trabajo no es suficiente para pagar esta deuda»"]:::scene
     a1_h{{"DECISIÓN 1.3 · Ya en casa<br/>¿Trabajar o estar con la familia?"}}:::decision
     a1_w["Trabaja: gana una tasa fija de dinero<br/>Salto a la noche · fin del día"]:::scene
     a1_f["Esposa: «Qué bueno que llegaste temprano»<br/>Hija: «Ya era hora» · fin del día"]:::scene
     a1_x6["Juega 6 juegos (x6)<br/>Todo el día en el casino"]:::scene
     a1_t3["Calle de noche<br/>El vagabundo ya está dormido"]:::scene
-    a1_e6["Llega a casa, todos duermen<br/>Fin del día (sin interacciones)"]:::scene
+    a1_e6["Llega a casa, todos duermen<br/>Fin del día (sin interacciones)<br/>Protagonista (a sí mismo): «Tuve que quedarme hasta tarde, necesito ganar dinero rápido. Creo que entre más apueste, más dinero puedo ganar»"]:::scene
     e1A(["N1 = A<br/>x3 + tiempo con la familia"]):::state
     e1B(["N1 = B<br/>x3 + trabajó"]):::state
     e1C(["N1 = C<br/>x6"]):::state
   end
   subgraph DIA2["Día 2"]
     direction TB
-    b2_fam["Mañana · Sala<br/>Esposa: «Qué bueno que llegaste temprano anoche»<br/>Hija: «Te extraño cuando no estás»"]:::scene
+    b2_fam["Mañana · Sala<br/>Esposa: «Qué bueno que llegaste temprano anoche»<br/>Hija: «Te extraño cuando no estás»<br/>Protagonista (a sí mismo): «Debo hacer un esfuerzo por ser bueno con ellas, o me van a odiar»"]:::scene
     b2_nof["Mañana · Sala<br/>Esposa: «¿Mucho trabajo anoche?»<br/>Protagonista: «Sí, lo siento de nuevo»<br/>Hija: «Ya se está volviendo costumbre»<br/>(no hay posibilidad de ganar puntos)"]:::scene
     b2_dh{{"DECISIÓN 2.1<br/>Respuesta a la hija"}}:::decision
     b2_oa["Opción 1: «Yo también, pequeña, ya era hora de compartir. Lo siento por no estar tan presente»<br/>Hija: «Gracias»"]:::scene
     b2_ob["Opción 2: «No prometo poder hacerlo seguido, tengo mucho trabajo»<br/>Hija: «Okay.»"]:::scene
     b2_go["El protagonista sale al casino"]:::scene
     b2_vc{"¿N1 es A o B?<br/>(el vagabundo lo vio pasar ayer: x3)"}:::cond
-    b2_v1["Vagabundo: «¿Otro día más para el casino? Esto se está volviendo un hábito»<br/>Protagonista: «Por favor no se meta»"]:::scene
-    b2_v2["Vagabundo: «Señor, no lo vi anoche, cuidado con esas noches de juego sin fin»<br/>Protagonista: «Por favor no se meta»"]:::scene
+    b2_v1["Vagabundo: «¿Otro día más para el casino? Esto se está volviendo un hábito»<br/>Protagonista: «Por favor no se meta»<br/>Protagonista (a sí mismo): «Si supiera que el casino es mi única salida en este punto»"]:::scene
+    b2_v2["Vagabundo: «Señor, no lo vi anoche, cuidado con esas noches de juego sin fin»<br/>Protagonista: «Por favor no se meta»<br/>Protagonista (a sí mismo): «Si supiera que no tengo opción, tengo que ganar dinero rápido. Trabajar ya no es suficiente»"]:::scene
     b2_cas["Llega al casino"]:::scene
     b2_g{{"DECISIÓN 2.2<br/>¿Cuántos juegos juega?"}}:::decision
     b2_x3["Juega 3 juegos (x3)<br/>El vagabundo lo ve pasar pero no le dice nada"]:::scene
@@ -76,6 +77,7 @@ flowchart TD
     c3_dh{{"DECISIÓN 3.1<br/>Respuesta a la hija"}}:::decision
     c3_oa["Opción 1: «Que te vaya bien hija, me cuentas cómo te fue»<br/>Hija: «Gracias papá»"]:::scene
     c3_ob["Opción 2: «Qué bueno, pero tengo que irme ya, voy tarde al trabajo»"]:::scene
+    c3_mono["Protagonista (a sí mismo): «Debo tratarlas bien, les va a parecer raro mi comportamiento si no lo hago»"]:::scene
     c3_m2{"¿Dos días seguidos sin familia?<br/>N1 es B o C, y N2 es B o C"}:::cond
     c3_dos["Esposa: «Me estoy cansando de que llegues tarde, ya no es normal. ¿Qué está pasando?»<br/>Protagonista: «Nada cariño, tengo mucho trabajo»<br/>Hija: «¿Por qué sigues llegando tarde? ¿Qué te pasa?»"]:::scene
     c3_uno["Esposa: «Sé que solo fue ayer, pero por favor llega temprano hoy»<br/>Hija: «¿Mucho trabajo anoche?»<br/>Protagonista: «Sí hija, lo siento, trataré de llegar más temprano»<br/>(sin decisión)"]:::scene
@@ -86,7 +88,7 @@ flowchart TD
     c3_vc{"¿N2 es A o B?<br/>(el vagabundo lo vio volver a casa ayer: x3)"}:::cond
     c3_v1["Vagabundo: «Buenos días señor, ¿cómo va el día?»<br/>Protagonista: «Podría ir mejor»"]:::scene
     c3_vc2{"¿N1 = C y N2 = C?<br/>(dos noches seguidas x6)"}:::cond
-    c3_v2["Vagabundo: «No quiero entrometerme, pero tenga cuidado con las apuestas. Me costaron todo a mí»<br/>Protagonista: «Ya es muy tarde, tengo muchas deudas»"]:::scene
+    c3_v2["Vagabundo: «Buenos días señor. No quiero entrometerme, pero tenga cuidado con las apuestas. Me costó todo a mí, no quiero que lo mismo le ocurra»<br/>Protagonista: «Creo que ya es muy tarde para eso, tengo muchas deudas, no sé qué hacer. Esta es mi única salida, tengo que hacer dinero ya»"]:::scene
     c3_v3["Vagabundo: «Buenos días, señor. Cuídese.»"]:::scene
     c3_cas["Llega al casino"]:::scene
     c3_g{{"DECISIÓN 3.2<br/>¿Cuántos juegos juega?"}}:::decision
@@ -104,7 +106,7 @@ flowchart TD
   subgraph DIA4["Día 4"]
     direction TB
     d4_mA["Esposa: «No estoy de acuerdo con lo que vas a hacer, pero espero te den buen dinero». Sale al mercado<br/>Hija: «Escuché que vas a vender el carro. ¿Para qué necesitas tanta plata?»<br/>Protagonista: «Una deuda vieja, todo mejorará»"]:::scene
-    d4_mC["Protagonista confiesa: «He decidido vender el carro, necesito pagar una deuda vieja que no te había contado»<br/>Esposa: «Mentiroso, debiste decírmelo»<br/>«Si esto sigue así, tendré que dejarte»"]:::scene
+    d4_mC["Esposa: «Hola cariño, ¿qué tal la noche?»<br/>Protagonista: «He decidido vender el carro, necesito el dinero para pagar una deuda vieja que no te había contado»<br/>Esposa: «Mentiroso, debiste decirme que tenías deudas grandes. No vas a vender NUESTRO carro»<br/>Protagonista: «No estaba pidiendo permiso, haré lo que quiera con nuestro carro»<br/>Esposa: «Si esto sigue así, tendré que dejarte. Voy al mercado»<br/>Protagonista (a sí mismo): «Está brava conmigo, y tiene razón, pero no me quedaba de otra. Si no consigo esa plata a tiempo, nadie sabe qué puede pasar»"]:::scene
     d4_mN["Esposa: «Voy al mercado a comprar unas cosas que nos faltan»<br/>Hija: «Tengo que salir rápido, voy tarde y me va a dejar el bus»<br/>Protagonista: «Que te vaya bien»"]:::scene
     d4_go["El protagonista sale al casino (a pie si vendió el carro)"]:::scene
     d4_vc{"¿N3 es C o D?<br/>(hizo x6 ayer: el vagabundo no lo vio)"}:::cond
@@ -127,7 +129,7 @@ flowchart TD
   end
   subgraph DIA5["Día 5"]
     direction TB
-    e5_s["Mañana · La esposa no le dice nada (está brava)<br/>Hija: «Mi mamá me contó todo. Eres un mentiroso»<br/>Protagonista: «Lo siento, es mi culpa»<br/>Hija: «Más te vale sacarnos de ésta»"]:::scene
+    e5_s["Mañana · La esposa no le dice nada (está brava)<br/>Hija: «Mi mamá me contó todo. Eres un mentiroso»<br/>Protagonista: «Lo siento, es mi culpa»<br/>Hija: «Más te vale sacarnos de ésta»<br/>Protagonista (a sí mismo): «Tengo que solucionar esto, necesito mucha plata, y rápido»"]:::scene
     e5_d{{"DECISIÓN 5.1<br/>¿Trabajar o ir al casino?"}}:::decision
     e5_w["Trabaja · salto a la noche<br/>Gana una tasa fija de dinero"]:::scene
     e5_cas["Espacio intermedio: el vagabundo no está<br/>Entra al casino"]:::scene
@@ -140,11 +142,6 @@ flowchart TD
     e5B(["N5 = B<br/>usó ahorros de la hija"]):::state
     e5C(["N5 = C<br/>no usó ninguna"]):::state
   end
-  subgraph DIA6["Día 6 (opcional)"]
-    direction TB
-    f6_q{{"DECISIÓN 6.1<br/>¿Juega un día extra (Día 6)?"}}:::decision
-    f6_c["Ciclo del Día 6: casa → transición → casino → transición → casa<br/>Sin interacciones con esposa, hija ni vagabundo (no tiene árbol de decisiones)<br/>Al llegar a casa (x3 o x6) se acaba el día y el juego"]:::scene
-  end
   subgraph FINALES["Finales"]
     direction TB
     g_ev{"¿Qué % de la deuda se pagó?"}:::cond
@@ -152,9 +149,7 @@ flowchart TD
     g_c{"¿Cumplió el umbral de puntos de familia?"}:::cond
     g_f2[["FINAL 2<br/>Salto 1 año · narra el protagonista<br/>Casi paga la deuda, pero el gota a gota le saca un riñón; la familia lo deja y la esposa lo odia; el negocio quiebra; trabaja en McDonalds<br/>La hija no lo odia del todo: a veces hablan"]]:::final
     g_f3[["FINAL 3<br/>Salto 1 año · narra el protagonista<br/>Igual que el Final 2, pero la esposa Y la hija lo odian"]]:::final
-    g_j{"¿Jugó el Día 6?"}:::cond
-    g_f4[["FINAL 4 · 100% de la deuda paga<br/>En el casino elige un juego: 0% de probabilidad de ganar<br/>Narra: pagó la deuda pero lo perdió todo otra vez; la familia lo odia; el negocio quebró; trabaja en McDonalds"]]:::final
-    g_f5[["FINAL 5 · Día 6 jugado<br/>Tras el ciclo del Día 6, el protagonista narra el mismo cierre del Final 4:<br/>pagó la deuda pero lo perdió todo otra vez"]]:::final
+    g_f4[["FINAL 4 · 100% de la deuda paga<br/>En el casino elige un juego: 0% de probabilidad de ganar<br/>Narra: pagó la deuda pero lo perdió todo otra vez; la casa siempre gana; debió hacerle caso a su esposa desde el principio"]]:::final
   end
 
   intro --> a1_s0
@@ -202,8 +197,9 @@ flowchart TD
   b2_x6 --> b2_e6
   b2_e6 --> e2C
   e2A -->|"N2 = A"| c3_fam
-  e2B -->|"N2 = B"| c3_m2
-  e2C -->|"N2 = C"| c3_m2
+  e2B -->|"N2 = B"| c3_mono
+  e2C -->|"N2 = C"| c3_mono
+  c3_mono --> c3_m2
   c3_fam --> c3_dh
   c3_dh -->|"Opción 1 · +PF"| c3_oa
   c3_dh -->|"Opción 2"| c3_ob
@@ -279,19 +275,14 @@ flowchart TD
   e5_h --> e5A
   e5_a --> e5B
   e5_n --> e5C
-  e5A --> f6_q
-  e5B --> f6_q
-  e5C --> f6_q
-  f6_q -->|"Sí"| f6_c
-  f6_q -->|"No"| g_ev
-  f6_c --> g_ev
+  e5A --> g_ev
+  e5B --> g_ev
+  e5C --> g_ev
   g_ev -->|"Menos de 50%"| g_f1
   g_ev -->|"Más de 50% y menos de 100%"| g_c
-  g_ev -->|"100%"| g_j
+  g_ev -->|"100%"| g_f4
   g_c -->|"SÍ"| g_f2
   g_c -->|"NO"| g_f3
-  g_j -->|"SÍ"| g_f5
-  g_j -->|"NO"| g_f4
 
     classDef scene fill:#F1F5F9,stroke:#475569,color:#0f172a
     classDef intro fill:#E0F2FE,stroke:#0369A1,color:#0c4a6e
@@ -300,5 +291,5 @@ flowchart TD
     classDef state fill:#EDE9FE,stroke:#6D28D9,stroke-width:2px,color:#2e1065
     classDef final fill:#1F2937,stroke:#111827,color:#ffffff
 
-  linkStyle 3,14,24,39,48 stroke:#15803D,stroke-width:2px
-  linkStyle 53,73,80,103,116,117 stroke:#B91C1C,stroke-width:2px
+  linkStyle 3,14,24,39,49 stroke:#15803D,stroke-width:2px
+  linkStyle 54,74,81,104,117,118 stroke:#B91C1C,stroke-width:2px
