@@ -1,5 +1,6 @@
 local Conditions = require("src/systems/decisions/conditions")
 local Effects = require("src/systems/decisions/effects")
+local Validator = require("src/systems/dialogue_validator")
 
 local Dialogue = {}
 Dialogue.__index = Dialogue
@@ -59,6 +60,11 @@ function Dialogue.new(source, context)
   local data, err = load_data(source)
   assert(data, err)
 
+  local valid, validation_errors = Validator.validate(data)
+  if not valid then
+    error("Invalid dialogue:\n- " .. table.concat(validation_errors, "\n- "))
+  end
+
   local dialogue = setmetatable({
     data = data,
     context = context,
@@ -69,12 +75,8 @@ function Dialogue.new(source, context)
   }, Dialogue)
 
   if data.nodes then
-    assert(type(data.start) == "string", "Dialogue requires a start node")
-    assert(data.nodes[data.start], "Dialogue start node does not exist: " .. data.start)
-    local entered, enter_error = dialogue:_can_enter(data.start)
+    local entered, enter_error = dialogue:_enter(data.start)
     assert(entered, enter_error)
-  elseif not data.lines then
-    error("Dialogue requires nodes or lines")
   end
 
   return dialogue
@@ -106,7 +108,45 @@ function Dialogue:_enter(node_id)
   end
   self.current_id = node_id
   self.finished = false
-  return true
+  return self:_resolve_routes()
+end
+
+function Dialogue:_resolve_routes()
+  local visited = {}
+
+  while true do
+    local node = self:current_node()
+    if not node or not node.routes then
+      return true
+    end
+
+    if visited[self.current_id] then
+      return false, "Circular automatic route at node: " .. tostring(self.current_id)
+    end
+    visited[self.current_id] = true
+
+    local destination
+    for _, route in ipairs(node.routes) do
+      local matches, err = Conditions.evaluate(route.condition, self.context)
+      if err then
+        return false, err
+      end
+      if matches then
+        destination = route.next
+        break
+      end
+    end
+
+    if not destination then
+      return false, "No automatic route matched at node: " .. tostring(self.current_id)
+    end
+
+    local can_enter, enter_error = self:_can_enter(destination)
+    if not can_enter then
+      return false, enter_error
+    end
+    self.current_id = destination
+  end
 end
 
 function Dialogue:current_node()

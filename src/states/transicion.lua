@@ -72,6 +72,26 @@ local function create_shader()
   ]])
 end
 
+local function create_vignette_shader()
+  return love.graphics.newShader([[
+    extern vec2 resolucion;
+
+    vec4 effect(vec4 color, Image textura,
+                vec2 coords_textura, vec2 coords_pantalla) {
+      vec2 uv = coords_pantalla / resolucion;
+      vec2 original_uv = uv;
+
+      // Misma fórmula base del ejemplo de Shadertoy.
+      uv *= 1.0 - uv.yx;
+      float vig = uv.x * uv.y * 15.0;
+      vig = pow(vig, 0.5);
+
+      vec4 escena = Texel(textura, original_uv) * color;
+      return vec4(escena.rgb * vig, escena.a);
+    }
+  ]])
+end
+
 --[[local function vig_shader()
   primeroturn love.graphics.newShader([[
   vec4 effect(vec4 color, Image image, vec2 coords_textura, vec2 coords_pantalla) {
@@ -149,6 +169,7 @@ function transicion:enter(context)
   self.context = context
   self.dialogue = DialogueView.new(context, "dialogo.lua")
   self.shader = create_shader()
+  self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
 end
 
@@ -202,10 +223,13 @@ function transicion:draw()
   end
 
   love.graphics.setCanvas()
-  love.graphics.setShader()
-  love.graphics.setBlendMode("alpha")
+  self.vignette_shader:send("resolucion", { w, h })
+  love.graphics.setShader(self.vignette_shader)
+  love.graphics.setBlendMode("replace")
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.draw(self.current, 0, 0)
+  love.graphics.setShader()
+  love.graphics.setBlendMode("alpha")
   love.graphics.pop()
   self.dialogue:draw()
 end
