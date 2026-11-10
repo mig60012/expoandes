@@ -1,60 +1,85 @@
+local function ovalo(x, y, rx, ry, lados)
+  local puntos = {}
+  for i = 0, lados - 1 do
+    local angulo = i / lados * math.pi * 2
+    puntos[#puntos + 1] = x + math.cos(angulo) * rx
+    puntos[#puntos + 1] = y + math.sin(angulo) * ry
+  end
+  return puntos
+end
+
+local function rombo(x, y, a, b)
+  return { x, y, x + a, y + a / 2, x + a - b, y + (a + b) / 2, x - b, y + b / 2 }
+end
+
+local function colocar(puntos, factor, x, y)
+  local colocados = {}
+  for i = 1, #puntos, 2 do
+    colocados[i], colocados[i + 1] = x + puntos[i] * factor, y + puntos[i + 1] * factor
+  end
+  return colocados
+end
+
+local function solido(nombre, choque, extra)
+  local objeto = extra or {}
+  local suma_x, suma_y = 0, 0
+  for i = 1, #choque, 2 do
+    suma_x, suma_y = suma_x + choque[i], suma_y + choque[i + 1]
+  end
+  objeto.nombre, objeto.choque = nombre, choque
+  objeto.x, objeto.y = suma_x / (#choque / 2), suma_y / (#choque / 2)
+  return objeto
+end
+
+local function pie_izquierda(x)
+  return 400 + (1200 - x) / 2
+end
+
+local function pie_derecha(x)
+  return 400 + (x - 1200) / 2
+end
+
+local BLACKJACK = {
+  67, -71, 101, -53, 122, -30, 127, -10, 115, 20, 99, 36, 64, 56,
+  30, 66, -14, 71, -67, 65, -94, 64, -109, 54, -128, 27,
+}
+
+local RULETA = {
+  110, -104, 184, -69, 194, -58, 194, -34, 200, 10, -40, 132, -92, 130,
+  -196, 54, -194, 40, -18, -53, -17, -69, 28, -92, 66, -104,
+}
+
 local Plano = {
-  ancho = 1920,
-  alto = 1080,
-  suelo = { 420, 430, 1500, 430, 1920, 1080, 0, 1080 },
-  fondo = {
-    techo = { 0, 0, 1920, 0, 1500, 90, 420, 90 },
-    pared_izquierda = { 0, 0, 420, 90, 420, 430, 0, 1080 },
-    pared_derecha = { 1500, 90, 1920, 0, 1920, 1080, 1500, 430 },
-    pared_fondo = { 420, 90, 1500, 90, 1500, 430, 420, 430 },
+  ancho = 2400,
+  alto = 1350,
+  vista = { ancho = 1536, alto = 864 },
+  estiramiento = 2,
+  jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 64, alto = 150 },
+  suelo = { 24, 988, 1200, 400, 2376, 988, 2376, 1338, 24, 1338 },
+  paredes = {
+    izquierda = { 0, 0, 1200, 0, 1200, 400, 0, 1000 },
+    derecha = { 1200, 0, 2400, 0, 2400, 1000, 1200, 400 },
   },
-  profundidad = { y_fondo = 430, y_frente = 1080, escala_fondo = 0.6, escala_frente = 1 },
-  inicio = { x = 1430, y = 580 },
-  puerta = { zona = { 1540, 492, 1640, 647, 1550, 660, 1450, 505 } },
+  inicio = { x = 1830, y = 857 },
+  puerta = {
+    zona = { 1900, 752, 2040, 822, 1950, 867, 1810, 797 },
+    marco = { 1900, 750, 2040, 820, 2040, 590, 1900, 520 },
+  },
   objetos = {
-    { nombre = "reloj", caja = { 900, 130, 120, 120 } },
-    { nombre = "cuadro", caja = { 150, 250, 160, 200 } },
-    { nombre = "puerta", caja = { 1540, 230, 100, 420 } },
-    {
-      nombre = "mesa_blackjack", x = 540, y = 740, caja = { 360, 560, 360, 300 },
-      choque = { 380, 739, 662, 637, 700, 741, 418, 843 },
-      interaccion = "blackjack", etiqueta = "Blackjack",
-    },
-    {
-      nombre = "mesa_poker", x = 960, y = 650, caja = { 770, 470, 400, 310 },
-      choque = { 780, 652, 1100, 536, 1140, 648, 820, 764 },
-      interaccion = "poker", etiqueta = "Póker",
-    },
-    {
-      nombre = "mesa_ruleta", x = 1380, y = 740, caja = { 1200, 560, 360, 300 },
-      choque = { 1220, 739, 1502, 637, 1540, 741, 1258, 843 },
-      interaccion = "ruleta", etiqueta = "Ruleta",
-    },
-    {
-      nombre = "dueno", x = 520, y = 480, caja = { 470, 300, 100, 190 },
-      choque = { 490, 465, 550, 465, 550, 495, 490, 495 },
-      interaccion = "dueno", etiqueta = "Hablar con el dueño",
-    },
-    {
-      nombre = "matera", x = 700, y = 460, caja = { 669, 376, 62, 99 },
-      choque = { 670, 445, 730, 445, 730, 475, 670, 475 },
-    },
-    {
-      nombre = "matera", x = 150, y = 1000, caja = { 103, 863, 95, 152 },
-      choque = { 110, 985, 190, 985, 190, 1015, 110, 1015 },
-    },
-    {
-      nombre = "matera", x = 1770, y = 1000, caja = { 1723, 863, 95, 152 },
-      choque = { 1730, 985, 1810, 985, 1810, 1015, 1730, 1015 },
-    },
-    {
-      nombre = "tragamonedas", x = 1290, y = 452, caja = { 1245, 290, 90, 180 },
-      choque = { 1250, 435, 1330, 435, 1330, 470, 1250, 470 },
-    },
-    {
-      nombre = "tragamonedas", x = 1410, y = 452, caja = { 1365, 290, 90, 180 },
-      choque = { 1370, 435, 1450, 435, 1450, 470, 1370, 470 },
-    },
+    solido("mesa_blackjack", colocar(BLACKJACK, 1.66, 700, 1040), { interaccion = "blackjack", etiqueta = "Blackjack" }),
+    solido("mesa_poker", ovalo(1200, 900, 146, 104, 24), { interaccion = "poker", etiqueta = "Póker" }),
+    solido("mesa_ruleta", colocar(RULETA, 1.3, 1665, 1085), { interaccion = "ruleta", etiqueta = "Ruleta" }),
+    solido("dueno", { 1230, 440, 1200, 456, 1170, 440, 1200, 424 }),
+    solido("barra", rombo(950, pie_izquierda(950) + 3, 168, 520)),
+    solido("caja", rombo(360, pie_izquierda(360) + 3, 130, 250)),
+    solido("tragamonedas", rombo(1330, pie_derecha(1330) + 3, 412, 70)),
+    solido("tragamonedas", rombo(2130, pie_derecha(2130) + 3, 204, 70)),
+    solido("tragamonedas", rombo(1290, 615, 308, 70)),
+    solido("tragamonedas", rombo(2060, 1075, 308, 70)),
+    solido("columna", ovalo(1010, 770, 42, 21, 24)),
+    solido("columna", ovalo(1450, 880, 42, 21, 24)),
+    solido("columna", ovalo(960, 1200, 42, 21, 24)),
+    solido("columna", ovalo(1380, 1240, 42, 21, 24)),
   },
 }
 

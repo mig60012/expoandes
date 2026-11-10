@@ -1,5 +1,7 @@
 local Colision = {}
 
+local REPETICIONES = 6
+
 local function punto_cercano(px, py, ax, ay, bx, by)
   local abx, aby = bx - ax, by - ay
   local largo = abx * abx + aby * aby
@@ -9,25 +11,30 @@ local function punto_cercano(px, py, ax, ay, bx, by)
 end
 
 local function empujar(x, y, radio, poligono)
+  local cercano_x, cercano_y, menor = nil, nil, radio
   local j = #poligono - 1
   for i = 1, #poligono, 2 do
     local cx, cy = punto_cercano(x, y, poligono[j], poligono[j + 1], poligono[i], poligono[i + 1])
-    local dx, dy = x - cx, y - cy
-    local distancia = math.sqrt(dx * dx + dy * dy)
-    if distancia > 0 and distancia < radio then
-      x, y = cx + dx / distancia * radio, cy + dy / distancia * radio
+    local distancia = math.sqrt((x - cx) ^ 2 + (y - cy) ^ 2)
+    if distancia > 0 and distancia < menor then
+      cercano_x, cercano_y, menor = cx, cy, distancia
     end
     j = i
   end
-  return x, y
+  if not cercano_x then
+    return x, y
+  end
+  return cercano_x + (x - cercano_x) / menor * radio, cercano_y + (y - cercano_y) / menor * radio
 end
 
 function Colision.mover(x, y, dx, dy, radio, poligonos)
   local pasos = math.max(1, math.ceil(math.max(math.abs(dx), math.abs(dy)) / (radio / 2)))
   for _ = 1, pasos do
     x, y = x + dx / pasos, y + dy / pasos
-    for _, poligono in ipairs(poligonos) do
-      x, y = empujar(x, y, radio, poligono)
+    for _ = 1, REPETICIONES do
+      for _, poligono in ipairs(poligonos) do
+        x, y = empujar(x, y, radio, poligono)
+      end
     end
   end
   return x, y
@@ -46,15 +53,16 @@ function Colision.dentro(x, y, poligono)
   return dentro
 end
 
-function Colision.cercano(x, y, objetos, alcance)
-  local elegido, mejor = nil, alcance
-  for _, objeto in ipairs(objetos) do
-    local distancia = math.sqrt((objeto.x - x) ^ 2 + (objeto.y - y) ^ 2)
-    if distancia <= mejor then
-      elegido, mejor = objeto, distancia
-    end
+function Colision.distancia(x, y, poligono, estiramiento)
+  local factor = estiramiento or 1
+  local minimo = math.huge
+  local j = #poligono - 1
+  for i = 1, #poligono, 2 do
+    local cx, cy = punto_cercano(x, y, poligono[j], poligono[j + 1] * factor, poligono[i], poligono[i + 1] * factor)
+    minimo = math.min(minimo, math.sqrt((x - cx) ^ 2 + (y - cy) ^ 2))
+    j = i
   end
-  return elegido
+  return minimo
 end
 
 return Colision
