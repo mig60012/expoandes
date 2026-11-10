@@ -1,7 +1,9 @@
 local Caminante = require("src/states/casino/caminante")
 local Encuadre = require("src/states/casino/encuadre")
 local Plano = require("src/states/casino/plano")
+local VistaDialogo = require("src/states/casino/dialogue")
 local Camara = require("lib/camera")
+local Dialogue = require("src/systems/dialogue")
 
 local casino = {}
 
@@ -66,6 +68,18 @@ local function dibujar_jugador(jugador)
   rotulo("jugador", jugador.x, jugador.y - alto / 2, 100, PISO)
 end
 
+local function dibujar_aviso(objeto, fuente)
+  local texto = "Z  " .. objeto.etiqueta
+  local ancho, alto = fuente:getWidth(texto) + 30, fuente:getHeight() + 14
+  love.graphics.setColor(BORDE)
+  love.graphics.setLineWidth(6)
+  love.graphics.polygon("line", objeto.choque)
+  love.graphics.setColor(PERSONAJE)
+  love.graphics.rectangle("fill", objeto.x - ancho / 2, objeto.y - ALTURA_AVISO - alto, ancho, alto)
+  love.graphics.setColor(PISO)
+  love.graphics.print(texto, objeto.x - ancho / 2 + 15, objeto.y - ALTURA_AVISO - alto + 7)
+end
+
 function casino:encuadrar(dt)
   local ancho, alto = love.graphics.getDimensions()
   local zoom = Encuadre.zoom(ancho, alto, Plano.vista.ancho, Plano.vista.alto)
@@ -81,10 +95,15 @@ end
 function casino:enter(context)
   self.context = context
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
+  self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
   self.mapa = dibujar_mapa(self.fuente)
+  self.interactuables = {}
   local poligonos = { Plano.suelo }
   for _, objeto in ipairs(Plano.objetos) do
     poligonos[#poligonos + 1] = objeto.choque
+    if objeto.interaccion then
+      self.interactuables[#self.interactuables + 1] = objeto
+    end
   end
   self.jugador = Caminante.new({
     x = Plano.inicio.x,
@@ -99,14 +118,33 @@ function casino:enter(context)
 end
 
 function casino:leave()
-  self.context, self.fuente, self.mapa, self.jugador, self.camara = nil
+  self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
+  self.interactuables, self.cercano, self.dialogo = nil
+end
+
+function casino:abrir(nodo)
+  local dialogo = Dialogue.new({ start = "inicio", nodes = { inicio = nodo } }, self.context)
+  self.dialogo = VistaDialogo.new(dialogo, function()
+    self.dialogo = nil
+  end)
+end
+
+function casino:keypressed(tecla)
+  if self.dialogo then
+    self.dialogo:keypressed(tecla)
+  elseif self.cercano and (tecla == "z" or tecla == "return") then
+    self:abrir({ speaker = self.cercano.etiqueta, text = TEXTOS[self.cercano.interaccion], ending = true })
+  end
 end
 
 function casino:update(dt)
-  local tecla = love.keyboard.isDown
-  local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
-  local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
-  self.jugador:mover(dx, dy, dt)
+  if not self.dialogo then
+    local tecla = love.keyboard.isDown
+    local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
+    local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
+    self.jugador:mover(dx, dy, dt)
+    self.cercano = self.jugador:mas_cercano(self.interactuables, Plano.jugador.alcance)
+  end
   self:encuadrar(dt)
 end
 
@@ -117,7 +155,14 @@ function casino:draw()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(self.mapa)
   dibujar_jugador(self.jugador)
+  if self.cercano and not self.dialogo then
+    dibujar_aviso(self.cercano, self.fuente)
+  end
   self.camara:detach()
+  if self.dialogo then
+    local ancho, alto = love.graphics.getDimensions()
+    self.dialogo:draw(ancho, alto, self.fuente_dialogo)
+  end
   love.graphics.pop()
 end
 
