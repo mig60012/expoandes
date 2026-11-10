@@ -155,12 +155,19 @@ function casino:enter(context)
   })
   self.camara = Camara(self.jugador.x, self.jugador.y, 1)
   self.jornada = Jornada.new({ maximo = JUGADAS_POR_DIA, cansancio = CANSANCIO })
+  self.historial = {}
   self:encuadrar()
+  self:anotar("entrar")
 end
 
 function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.selector, self.jornada = nil
+  self.historial = nil
+end
+
+function casino:anotar(...)
+  self.historial[#self.historial + 1] = table.concat({ ... }, " ")
 end
 
 function casino:abrir(nodo)
@@ -168,6 +175,7 @@ function casino:abrir(nodo)
   self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
     if opcion and opcion.salir then
+      self:anotar("salir")
       self.context.state_machine:switch("transicion")
     end
   end)
@@ -175,6 +183,7 @@ end
 
 function casino:sentarse(mesa)
   if self.jornada:completa() then
+    self:anotar("mesa_cerrada", mesa.interaccion)
     self:abrir({ speaker = mesa.etiqueta, text = "Ya no quedan jugadas por hoy.", ending = true })
     return
   end
@@ -182,20 +191,24 @@ function casino:sentarse(mesa)
   local apuesta = Apuesta.new({
     minimo = minimo,
     dinero = dinero,
-    al_confirmar = function()
+    al_confirmar = function(monto)
       self.selector = nil
+      self:anotar("apuesta", mesa.interaccion, monto)
       self.jornada:registrar_jugada()
       self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
       self:abrir({ speaker = mesa.etiqueta, text = TEXTOS[mesa.interaccion], ending = true })
     end,
     al_cancelar = function()
       self.selector = nil
+      self:anotar("cancelar", mesa.interaccion)
     end,
   })
   if not apuesta then
+    self:anotar("rechazo", mesa.interaccion)
     self:abrir({ speaker = mesa.etiqueta, text = "El mínimo de esta mesa es " .. minimo .. " M y tienes " .. dinero .. " M.", ending = true })
     return
   end
+  self:anotar("sentarse", mesa.interaccion)
   self.selector = VistaApuesta.new({
     apuesta = apuesta,
     salto_chico = SALTO_CHICO,

@@ -52,9 +52,18 @@ love = {
 
 local casino = require("src/states/casino")
 
+local cambios = {}
+
 local function entrar(dinero)
   casino:leave()
-  casino:enter({ economy = Economy.new(dinero), state_machine = { switch = function() end } })
+  casino:enter({
+    economy = Economy.new(dinero),
+    state_machine = {
+      switch = function(_, nombre)
+        cambios[#cambios + 1] = nombre
+      end,
+    },
+  })
 end
 
 local function junto_a(nombre)
@@ -153,6 +162,39 @@ assert(casino.jornada.jugadas == 0, "un rechazo no cuenta como jugada")
 entrar(30)
 assert(casino.jornada.jugadas == 0, "cada entrada al casino empieza un dia nuevo")
 assert(casino.jugador.velocidad == RAPIDEZ, "el dia nuevo empieza sin cansancio")
+
+local function historial()
+  return table.concat(casino.historial, ", ")
+end
+
+entrar(30)
+junto_a("ruleta")
+pulsar("z", "x", "z", "up", "return", "z")
+assert(historial() == "entrar, sentarse ruleta, cancelar ruleta, sentarse ruleta, apuesta ruleta 2", "anota sentarse, cancelar y apostar: " .. historial())
+
+entrar(2)
+junto_a("poker")
+pulsar("z", "z")
+assert(historial() == "entrar, rechazo poker", "anota el rechazo: " .. historial())
+
+entrar(30)
+junto_a("blackjack")
+for _ = 1, 6 do
+  pulsar("z", "return", "z")
+end
+pulsar("z", "z")
+assert(#casino.historial == 14, "cada jugada anota sentarse y apuesta")
+assert(casino.historial[14] == "mesa_cerrada blackjack", "anota la mesa cerrada")
+
+casino.jugador.x, casino.jugador.y = 1925, 810
+casino:update(0)
+assert(mensaje() == "¿Quieres salir del casino?", "pisar la puerta pregunta si salir")
+pulsar("return")
+assert(casino.historial[15] == "salir", "anota la salida")
+assert(cambios[#cambios] == "transicion", "al salir pasa a la transicion")
+
+casino:leave()
+assert(casino.historial == nil, "al salir del casino se libera el historial")
 
 love = love_real
 print("test_casino: ok")
