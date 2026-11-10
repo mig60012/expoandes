@@ -2,6 +2,7 @@ local Apuesta = require("src/states/casino/apuesta")
 local Caminante = require("src/states/casino/caminante")
 local Colision = require("src/states/casino/colision")
 local Encuadre = require("src/states/casino/encuadre")
+local Jornada = require("src/states/casino/jornada")
 local Plano = require("src/states/casino/plano")
 local VistaDialogo = require("src/states/casino/dialogue")
 local VistaApuesta = require("src/states/casino/vista_apuesta")
@@ -17,6 +18,7 @@ local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local SALTO_CHICO, SALTO_GRANDE = 1, 10
+local JUGADAS_POR_DIA, CANSANCIO = 6, 0.08
 
 local TEXTOS = {
   blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
@@ -152,12 +154,13 @@ function casino:enter(context)
     poligonos = poligonos,
   })
   self.camara = Camara(self.jugador.x, self.jugador.y, 1)
+  self.jornada = Jornada.new({ maximo = JUGADAS_POR_DIA, cansancio = CANSANCIO })
   self:encuadrar()
 end
 
 function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.selector = nil
+  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.selector, self.jornada = nil
 end
 
 function casino:abrir(nodo)
@@ -171,12 +174,18 @@ function casino:abrir(nodo)
 end
 
 function casino:sentarse(mesa)
+  if self.jornada:completa() then
+    self:abrir({ speaker = mesa.etiqueta, text = "Ya no quedan jugadas por hoy.", ending = true })
+    return
+  end
   local minimo, dinero = MINIMOS[mesa.interaccion], self.context.economy:get_money()
   local apuesta = Apuesta.new({
     minimo = minimo,
     dinero = dinero,
     al_confirmar = function()
       self.selector = nil
+      self.jornada:registrar_jugada()
+      self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
       self:abrir({ speaker = mesa.etiqueta, text = TEXTOS[mesa.interaccion], ending = true })
     end,
     al_cancelar = function()

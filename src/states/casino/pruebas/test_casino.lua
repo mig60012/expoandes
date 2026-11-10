@@ -1,4 +1,5 @@
 local Economy = require("src/systems/economy")
+local Plano = require("src/states/casino/plano")
 
 local love_real = love
 local pulsadas = {}
@@ -118,6 +119,40 @@ junto_a("ruleta")
 pulsar("z")
 casino:leave()
 assert(casino.selector == nil, "al salir del casino no queda el selector abierto")
+
+local function cerca(a, b)
+  return math.abs(a - b) < 0.000001
+end
+local RAPIDEZ = Plano.jugador.velocidad
+
+entrar(30)
+junto_a("ruleta")
+pulsar("z", "x")
+assert(casino.jornada.jugadas == 0, "cancelar no cuenta como jugada")
+for _ = 1, 3 do
+  pulsar("z", "return", "z")
+end
+assert(casino.jornada.jugadas == 3, "cada apuesta confirmada cuenta como jugada")
+assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.76), "con 3 jugadas camina al 76 %")
+for _ = 1, 3 do
+  pulsar("z", "return", "z")
+end
+assert(casino.jornada.jugadas == 6, "llega a 6 jugadas")
+assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.52), "con 6 jugadas camina al 52 %")
+pulsar("z")
+assert(casino.selector == nil, "con 6 jugadas no se abre el selector")
+assert(mensaje() == "Ya no quedan jugadas por hoy.", "a las 6 jugadas las mesas se cierran")
+pulsar("z")
+assert(casino.dialogo == nil and casino.jornada.jugadas == 6, "una mesa cerrada no suma jugadas")
+
+entrar(2)
+junto_a("poker")
+pulsar("z", "z")
+assert(casino.jornada.jugadas == 0, "un rechazo no cuenta como jugada")
+
+entrar(30)
+assert(casino.jornada.jugadas == 0, "cada entrada al casino empieza un dia nuevo")
+assert(casino.jugador.velocidad == RAPIDEZ, "el dia nuevo empieza sin cansancio")
 
 love = love_real
 print("test_casino: ok")
