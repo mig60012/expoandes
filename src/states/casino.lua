@@ -19,6 +19,7 @@ local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local SALTO_CHICO, SALTO_GRANDE = 1, 10
 local JUGADAS_POR_DIA, CANSANCIO = 6, 0.08
+local EMPATE = 1
 
 local TEXTOS = {
   blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
@@ -193,6 +194,8 @@ function casino:sentarse(mesa)
     dinero = dinero,
     al_confirmar = function(monto)
       self.selector = nil
+      self.context.economy:spend_money(monto)
+      self.context.economy:add_money(monto * EMPATE)
       self:anotar("apuesta", mesa.interaccion, monto)
       self.jornada:registrar_jugada()
       self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()

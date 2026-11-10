@@ -196,5 +196,42 @@ assert(cambios[#cambios] == "transicion", "al salir pasa a la transicion")
 casino:leave()
 assert(casino.historial == nil, "al salir del casino se libera el historial")
 
+local movimientos
+local function espiar_dinero()
+  movimientos = {}
+  local economia = casino.context.economy
+  local gastar, sumar = economia.spend_money, economia.add_money
+  function economia.spend_money(e, n)
+    movimientos[#movimientos + 1] = "cobra " .. n
+    return gastar(e, n)
+  end
+  function economia.add_money(e, n)
+    movimientos[#movimientos + 1] = "devuelve " .. n
+    return sumar(e, n)
+  end
+end
+
+entrar(30)
+espiar_dinero()
+junto_a("ruleta")
+pulsar("z", "x")
+assert(#movimientos == 0, "cancelar no mueve dinero")
+pulsar("z", "up", "up", "return")
+assert(table.concat(movimientos, ", ") == "cobra 3, devuelve 3", "la mesa cobra la apuesta y el empate la devuelve: " .. table.concat(movimientos, ", "))
+assert(casino.context.economy:get_money() == 30, "con el empate el dinero queda igual")
+
+entrar(5)
+espiar_dinero()
+junto_a("poker")
+pulsar("z", "right", "return")
+assert(table.concat(movimientos, ", ") == "cobra 5, devuelve 5", "puede apostar todo su dinero: " .. table.concat(movimientos, ", "))
+assert(casino.context.economy:get_money() == 5, "apostar todo con empate deja el mismo dinero")
+
+entrar(2)
+espiar_dinero()
+junto_a("poker")
+pulsar("z")
+assert(#movimientos == 0, "un rechazo no mueve dinero")
+
 love = love_real
 print("test_casino: ok")
