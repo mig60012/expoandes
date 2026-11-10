@@ -1,8 +1,10 @@
+local Apuesta = require("src/states/casino/apuesta")
 local Caminante = require("src/states/casino/caminante")
 local Colision = require("src/states/casino/colision")
 local Encuadre = require("src/states/casino/encuadre")
 local Plano = require("src/states/casino/plano")
 local VistaDialogo = require("src/states/casino/dialogue")
+local VistaApuesta = require("src/states/casino/vista_apuesta")
 local Camara = require("lib/camera")
 local Dialogue = require("src/systems/dialogue")
 
@@ -13,6 +15,8 @@ local ALTURA_CAMARA = 70
 local TAMANO_LETRA = 18
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
+local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
+local SALTO_CHICO, SALTO_GRANDE = 1, 10
 
 local TEXTOS = {
   blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
@@ -105,6 +109,14 @@ local function dibujar_aviso(objeto, fuente)
   love.graphics.print(texto, objeto.x - ancho / 2 + 15, objeto.y - ALTURA_AVISO - alto + 7)
 end
 
+local function renglones_apuesta(apuesta)
+  return {
+    "Apuesta: " .. apuesta.monto .. " M",
+    "Mínimo: " .. apuesta.minimo .. " M     Tienes: " .. apuesta.maximo .. " M",
+    "Arriba/Abajo: " .. SALTO_CHICO .. " M     Derecha/Izquierda: " .. SALTO_GRANDE .. " M     Z: confirmar     X: cancelar",
+  }
+end
+
 function casino:encuadrar(dt)
   local ancho, alto = love.graphics.getDimensions()
   local zoom = Encuadre.zoom(ancho, alto, Plano.vista.ancho, Plano.vista.alto)
@@ -145,7 +157,7 @@ end
 
 function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta = nil
+  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.selector = nil
 end
 
 function casino:abrir(nodo)
@@ -158,16 +170,44 @@ function casino:abrir(nodo)
   end)
 end
 
+function casino:sentarse(mesa)
+  local minimo, dinero = MINIMOS[mesa.interaccion], self.context.economy:get_money()
+  local apuesta = Apuesta.new({
+    minimo = minimo,
+    dinero = dinero,
+    al_confirmar = function()
+      self.selector = nil
+      self:abrir({ speaker = mesa.etiqueta, text = TEXTOS[mesa.interaccion], ending = true })
+    end,
+    al_cancelar = function()
+      self.selector = nil
+    end,
+  })
+  if not apuesta then
+    self:abrir({ speaker = mesa.etiqueta, text = "El mínimo de esta mesa es " .. minimo .. " M y tienes " .. dinero .. " M.", ending = true })
+    return
+  end
+  self.selector = VistaApuesta.new({
+    apuesta = apuesta,
+    salto_chico = SALTO_CHICO,
+    salto_grande = SALTO_GRANDE,
+    titulo = mesa.etiqueta,
+    renglones = renglones_apuesta,
+  })
+end
+
 function casino:keypressed(tecla)
   if self.dialogo then
     self.dialogo:keypressed(tecla)
+  elseif self.selector then
+    self.selector:keypressed(tecla)
   elseif self.cercano and (tecla == "z" or tecla == "return") then
-    self:abrir({ speaker = self.cercano.etiqueta, text = TEXTOS[self.cercano.interaccion], ending = true })
+    self:sentarse(self.cercano)
   end
 end
 
 function casino:update(dt)
-  if not self.dialogo then
+  if not self.dialogo and not self.selector then
     local tecla = love.keyboard.isDown
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
@@ -199,12 +239,15 @@ function casino:draw()
       dibujar_mesa(objeto, imagen)
     end
   end
-  if self.cercano and not self.dialogo then
+  if self.cercano and not self.dialogo and not self.selector then
     dibujar_aviso(self.cercano, self.fuente)
   end
   self.camara:detach()
+  local ancho, alto = love.graphics.getDimensions()
+  if self.selector then
+    self.selector:draw(ancho, alto, self.fuente_dialogo)
+  end
   if self.dialogo then
-    local ancho, alto = love.graphics.getDimensions()
     self.dialogo:draw(ancho, alto, self.fuente_dialogo)
   end
   love.graphics.pop()
