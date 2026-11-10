@@ -53,4 +53,32 @@ apuesta:cancelar()
 assert(cancelado, "cancelar avisa que no hubo apuesta")
 assert(confirmado == nil, "cancelar no confirma ningun monto")
 
+apuesta = Apuesta.new({ minimo = 3, dinero = 3 })
+apuesta:cambiar(1)
+assert(apuesta.monto == 3, "con el minimo exacto no puede subir")
+apuesta:cambiar(-1)
+assert(apuesta.monto == 3, "con el minimo exacto no puede bajar")
+
+apuesta = Apuesta.new({ minimo = 1, dinero = 13 })
+apuesta:cambiar(10)
+apuesta:cambiar(10)
+assert(apuesta.monto == 13, "puede apostar todo su dinero")
+
+apuesta = Apuesta.new({ minimo = 1, dinero = 3.5 })
+apuesta:cambiar(10)
+assert(apuesta.monto == 3.5, "con medios millones llega justo a lo que tiene")
+apuesta:cambiar(-1)
+assert(apuesta.monto == 2.5, "y baja desde ahi")
+apuesta:cambiar(-10)
+assert(apuesta.monto == 1, "sin bajar del minimo")
+
+apuesta = Apuesta.new({ minimo = 1, dinero = 250 })
+apuesta:cambiar(150)
+assert(apuesta.monto == 151, "apostar mas de 100 se puede: la regla de codicia no vive aqui")
+
+local una = Apuesta.new({ minimo = 1, dinero = 10 })
+local otra = Apuesta.new({ minimo = 1, dinero = 10 })
+una:cambiar(5)
+assert(otra.monto == 1, "cada apuesta lleva su propio monto")
+
 print("test_apuesta: ok")
