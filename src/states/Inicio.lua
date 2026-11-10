@@ -1,13 +1,8 @@
 local Inicio = {}
 
-local RUTAS_FONDOS = {
-	"assets/transicion/Inicio/fondo1inicio.jpg",
-	"assets/transicion/Inicio/fondo2inicio.jpg",
-	"assets/transicion/Inicio/fondo5inicio.png",
-	"assets/transicion/Inicio/fondo6inicio.jpg",
-}
-local ultimo_fondo
-local RUTA_FUENTE_TITULO = "assets/transicion/Inicio/RubikGlitch-Regular.ttf"
+local RUTA_FONDO = "assets/transicion/Inicio/fondo2inicio.jpg"
+local RUTA_FUENTE_TITULO = "assets/Boldonse-Regular.ttf"
+local RUTA_FUENTE_BOTON = "assets/AntonSC-Regular.ttf"
 local RUTA_MUSICA = "assets/transicion/Inicio/Musica/Musica menu.mp3"
 local DURACION_ANIMACION_TITULO = 0.8
 
@@ -17,7 +12,7 @@ function Inicio:enter(context)
 	self.musica = nil
 	self.tiempo_titulo = 0
 	self.fuente_titulo = love.graphics.newFont(RUTA_FUENTE_TITULO, 100)
-	self.fuente_boton = love.graphics.newFont(26)
+	self.fuente_boton = love.graphics.newFont(RUTA_FUENTE_BOTON, 26)
 	self.hover_boton = false
 	self.hover_titulo = false
 
@@ -27,23 +22,7 @@ function Inicio:enter(context)
 		self.musica:play()
 	end
 
-	local fondos_disponibles = {}
-	for _, ruta in ipairs(RUTAS_FONDOS) do
-		if love.filesystem.getInfo(ruta) then
-			table.insert(fondos_disponibles, ruta)
-		end
-	end
-
-	if #fondos_disponibles > 0 then
-		local indice = love.math.random(#fondos_disponibles)
-		local ruta = fondos_disponibles[indice]
-		if #fondos_disponibles > 1 and ruta == ultimo_fondo then
-			indice = (indice % #fondos_disponibles) + 1
-			ruta = fondos_disponibles[indice]
-		end
-		ultimo_fondo = ruta
-		self.fondo = love.graphics.newImage(ruta)
-	end
+	self.fondo = love.graphics.newImage(RUTA_FONDO)
 end
 
 function Inicio:leave()
@@ -140,7 +119,13 @@ function Inicio:mousepressed(x, y, button)
 
 	if x >= boton_x and x <= boton_x + boton_ancho
 		and y >= boton_y and y <= boton_y + boton_alto then
-		self.context.state_machine:switch("casa")
+		self.context.state_machine:switch("animacion", {
+			{ text = "Presiona la flecha o la tecla derecha para continuar." },
+		}, {
+			onComplete = function()
+				self.context.state_machine:switch("casa")
+			end,
+		})
 	end
 end
 

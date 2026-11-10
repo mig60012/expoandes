@@ -11,7 +11,7 @@ local state_machine = {
 -- Aqui se cargan todos los States
 function state_machine.load(context)
   state_machine.states = {
-    inicio = require("src/states/casino/pruebas/Inicio"),
+    inicio = require("src/states/Inicio"),
     casa = require("src/states/casa"),
     trabajo = require("src/states/trabajo"),
     casino = require("src/states/casino"),
