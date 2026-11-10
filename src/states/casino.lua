@@ -1,4 +1,5 @@
 local Caminante = require("src/states/casino/caminante")
+local Colision = require("src/states/casino/colision")
 local Encuadre = require("src/states/casino/encuadre")
 local Plano = require("src/states/casino/plano")
 local VistaDialogo = require("src/states/casino/dialogue")
@@ -11,6 +12,13 @@ local RIGIDEZ_CAMARA = 7
 local ALTURA_CAMARA = 70
 local TAMANO_LETRA = 18
 local PENDIENTE = "\n(arte pendiente)"
+local ALTURA_AVISO = 150
+
+local TEXTOS = {
+  blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
+  poker = "Mesa de póker. El juego todavía no está disponible.",
+  ruleta = "Mesa de ruleta. El juego todavía no está disponible.",
+}
 
 local PISO = { 0.88, 0.88, 0.88 }
 local PARED_IZQUIERDA = { 0.74, 0.74, 0.74 }
@@ -119,13 +127,16 @@ end
 
 function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.interactuables, self.cercano, self.dialogo = nil
+  self.interactuables, self.cercano, self.dialogo, self.en_puerta = nil
 end
 
 function casino:abrir(nodo)
   local dialogo = Dialogue.new({ start = "inicio", nodes = { inicio = nodo } }, self.context)
-  self.dialogo = VistaDialogo.new(dialogo, function()
+  self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
+    if opcion and opcion.salir then
+      self.context.state_machine:switch("transicion")
+    end
   end)
 end
 
@@ -144,6 +155,11 @@ function casino:update(dt)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
     self.jugador:mover(dx, dy, dt)
     self.cercano = self.jugador:mas_cercano(self.interactuables, Plano.jugador.alcance)
+    local en_puerta = Colision.dentro(self.jugador.x, self.jugador.y, Plano.puerta.zona)
+    if en_puerta and not self.en_puerta then
+      self:abrir({ speaker = "Puerta", text = "¿Quieres salir del casino?", choices = { { text = "Sí", salir = true }, { text = "No" } } })
+    end
+    self.en_puerta = en_puerta
   end
   self:encuadrar(dt)
 end
