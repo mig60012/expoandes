@@ -61,13 +61,16 @@ for _, objeto in ipairs(Plano.objetos) do
     interacciones[objeto.interaccion] = true
     total = total + 1
     assert(objeto.etiqueta, objeto.nombre .. " tiene etiqueta")
+    local archivo = io.open("src/states/casino/assets/" .. objeto.foto.archivo .. ".png", "rb")
+    assert(archivo, objeto.nombre .. " tiene su imagen")
+    archivo:close()
   end
 end
 
 assert(total == 3, "por ahora solo se interactua con las tres mesas")
 assert(interacciones.blackjack and interacciones.poker and interacciones.ruleta)
 assert(cuantos.tragamonedas == 4 and cuantos.columna == 4, "la decoracion es minima y solida")
-assert(cuantos.dueno == 1 and cuantos.barra == 1 and cuantos.caja == 1, "estan los lugares principales")
+assert(cuantos["dueño"] == 1 and cuantos.barra == 1 and cuantos.caja == 1, "estan los lugares principales")
 
 local function sin_rendija(a, b, que)
   local d = separacion(a, b)

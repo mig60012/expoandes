@@ -23,12 +23,30 @@ end
 local function solido(nombre, choque, extra)
   local objeto = extra or {}
   local suma_x, suma_y = 0, 0
+  local izq_x, izq_y, der_x, der_y = math.huge, 0, -math.huge, 0
   for i = 1, #choque, 2 do
     suma_x, suma_y = suma_x + choque[i], suma_y + choque[i + 1]
+    if choque[i] < izq_x then
+      izq_x, izq_y = choque[i], choque[i + 1]
+    end
+    if choque[i] > der_x then
+      der_x, der_y = choque[i], choque[i + 1]
+    end
   end
   objeto.nombre, objeto.choque = nombre, choque
   objeto.x, objeto.y = suma_x / (#choque / 2), suma_y / (#choque / 2)
+  objeto.linea = { x = (izq_x + der_x) / 2, y = (izq_y + der_y) / 2, pendiente = (der_y - izq_y) / (der_x - izq_x) }
   return objeto
+end
+
+local function foto(archivo, x, y, escala, caja)
+  return {
+    archivo = archivo,
+    x = x + caja[1] * escala,
+    y = y + caja[2] * escala,
+    ancho = caja[3] * escala,
+    alto = caja[4] * escala,
+  }
 end
 
 local function pie_izquierda(x)
@@ -66,10 +84,19 @@ local Plano = {
     marco = { 1900, 750, 2040, 820, 2040, 590, 1900, 520 },
   },
   objetos = {
-    solido("mesa_blackjack", colocar(BLACKJACK, 1.66, 700, 1040), { interaccion = "blackjack", etiqueta = "Blackjack" }),
-    solido("mesa_poker", ovalo(1200, 900, 146, 104, 24), { interaccion = "poker", etiqueta = "Póker" }),
-    solido("mesa_ruleta", colocar(RULETA, 1.3, 1665, 1085), { interaccion = "ruleta", etiqueta = "Ruleta" }),
-    solido("dueno", { 1230, 440, 1200, 456, 1170, 440, 1200, 424 }),
+    solido("mesa blackjack", colocar(BLACKJACK, 1.66, 700, 1040), {
+      interaccion = "blackjack", etiqueta = "Blackjack",
+      foto = foto("mesa_blackjack", 700, 1040, 1.6, { -128.4, -131.6, 255.2, 190.4 }),
+    }),
+    solido("mesa póker", ovalo(1200, 900, 146, 104, 24), {
+      interaccion = "poker", etiqueta = "Póker",
+      foto = foto("mesa_poker", 1200, 900, 1.8, { -78, -116, 155.2, 154.4 }),
+    }),
+    solido("mesa ruleta", colocar(RULETA, 1.3, 1665, 1085), {
+      interaccion = "ruleta", etiqueta = "Ruleta",
+      foto = foto("mesa_ruleta", 1665, 1085, 1.35, { -191.2, -162, 380.8, 245.6 }),
+    }),
+    solido("dueño", { 1230, 440, 1200, 456, 1170, 440, 1200, 424 }),
     solido("barra", rombo(950, pie_izquierda(950) + 3, 168, 520)),
     solido("caja", rombo(360, pie_izquierda(360) + 3, 130, 250)),
     solido("tragamonedas", rombo(1330, pie_derecha(1330) + 3, 412, 70)),

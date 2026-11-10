@@ -11,8 +11,8 @@ local casino = {}
 local RIGIDEZ_CAMARA = 7
 local ALTURA_CAMARA = 70
 local TAMANO_LETRA = 18
-local PENDIENTE = "\n(arte pendiente)"
-local ALTURA_AVISO = 150
+local ALTURA_AVISO = 240
+local CARPETA_FOTOS = "src/states/casino/assets/"
 
 local TEXTOS = {
   blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
@@ -43,7 +43,27 @@ local function figura(poligono, color)
   love.graphics.polygon("line", poligono)
 end
 
-local function dibujar_mapa(fuente)
+local function cargar_fotos()
+  local fotos = {}
+  for _, objeto in ipairs(Plano.objetos) do
+    if objeto.foto then
+      local ok, imagen = pcall(love.graphics.newImage, CARPETA_FOTOS .. objeto.foto.archivo .. ".png")
+      if ok then
+        fotos[objeto] = imagen
+      end
+    end
+  end
+  return fotos
+end
+
+local function dibujar_mesa(objeto, imagen)
+  local foto = objeto.foto
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.draw(imagen, foto.x, foto.y, 0, foto.ancho / imagen:getWidth(), foto.alto / imagen:getHeight())
+  rotulo(objeto.nombre, foto.x + foto.ancho / 2, foto.y + foto.alto * 0.42, foto.ancho, PISO)
+end
+
+local function dibujar_mapa(fuente, fotos)
   local lienzo = love.graphics.newCanvas(Plano.ancho, Plano.alto, { msaa = 4 })
   love.graphics.push("all")
   love.graphics.origin()
@@ -52,16 +72,17 @@ local function dibujar_mapa(fuente)
   love.graphics.setFont(fuente)
   figura(Plano.paredes.izquierda, PARED_IZQUIERDA)
   figura(Plano.paredes.derecha, PARED_DERECHA)
-  rotulo("pared" .. PENDIENTE, 620, 430, 300)
-  rotulo("pared" .. PENDIENTE, 1600, 400, 300)
-  rotulo("piso" .. PENDIENTE, 1200, 1290, 300)
+  rotulo("pared", 620, 430, 300)
+  rotulo("pared", 1600, 400, 300)
+  rotulo("piso", 1200, 1290, 300)
   figura(Plano.puerta.marco, FIGURA)
-  rotulo("puerta" .. PENDIENTE, 1970, 680, 140)
+  rotulo("puerta", 1970, 680, 140)
   figura(Plano.puerta.zona, PISO)
-  rotulo("salida", 1925, 815, 140)
   for _, objeto in ipairs(Plano.objetos) do
-    figura(objeto.choque, FIGURA)
-    rotulo(objeto.nombre .. PENDIENTE, objeto.x, objeto.y, 240)
+    if not fotos[objeto] then
+      figura(objeto.choque, FIGURA)
+      rotulo(objeto.nombre, objeto.x, objeto.y, 240)
+    end
   end
   love.graphics.pop()
   return lienzo
@@ -73,15 +94,11 @@ local function dibujar_jugador(jugador)
   love.graphics.ellipse("fill", jugador.x, jugador.y, Plano.jugador.radio, Plano.jugador.radio / Plano.estiramiento)
   love.graphics.setColor(PERSONAJE)
   love.graphics.rectangle("fill", jugador.x - ancho / 2, jugador.y - alto, ancho, alto)
-  rotulo("jugador", jugador.x, jugador.y - alto / 2, 100, PISO)
 end
 
 local function dibujar_aviso(objeto, fuente)
   local texto = "Z  " .. objeto.etiqueta
   local ancho, alto = fuente:getWidth(texto) + 30, fuente:getHeight() + 14
-  love.graphics.setColor(BORDE)
-  love.graphics.setLineWidth(6)
-  love.graphics.polygon("line", objeto.choque)
   love.graphics.setColor(PERSONAJE)
   love.graphics.rectangle("fill", objeto.x - ancho / 2, objeto.y - ALTURA_AVISO - alto, ancho, alto)
   love.graphics.setColor(PISO)
@@ -104,7 +121,8 @@ function casino:enter(context)
   self.context = context
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
-  self.mapa = dibujar_mapa(self.fuente)
+  self.fotos = cargar_fotos()
+  self.mapa = dibujar_mapa(self.fuente, self.fotos)
   self.interactuables = {}
   local poligonos = { Plano.suelo }
   for _, objeto in ipairs(Plano.objetos) do
@@ -127,7 +145,7 @@ end
 
 function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.interactuables, self.cercano, self.dialogo, self.en_puerta = nil
+  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta = nil
 end
 
 function casino:abrir(nodo)
@@ -170,7 +188,17 @@ function casino:draw()
   love.graphics.setFont(self.fuente)
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(self.mapa)
+  for objeto, imagen in pairs(self.fotos) do
+    if not self.jugador:detras_de(objeto) then
+      dibujar_mesa(objeto, imagen)
+    end
+  end
   dibujar_jugador(self.jugador)
+  for objeto, imagen in pairs(self.fotos) do
+    if self.jugador:detras_de(objeto) then
+      dibujar_mesa(objeto, imagen)
+    end
+  end
   if self.cercano and not self.dialogo then
     dibujar_aviso(self.cercano, self.fuente)
   end

@@ -108,6 +108,34 @@ for x = 24, Plano.ancho - 24, 16 do
   end
 end
 
+local function linea_vertical(x, poligono)
+  local minimo, maximo = math.huge, -math.huge
+  local j = #poligono - 1
+  for i = 1, #poligono, 2 do
+    local ax, ay, bx, by = poligono[j], poligono[j + 1], poligono[i], poligono[i + 1]
+    if (ax <= x) ~= (bx <= x) then
+      local y = ay + (by - ay) * (x - ax) / (bx - ax)
+      minimo, maximo = math.min(minimo, y), math.max(maximo, y)
+    end
+    j = i
+  end
+  return minimo, maximo
+end
+
+for _, punto in ipairs(cola) do
+  sonda.x, sonda.y = punto.x, punto.y
+  for _, objeto in ipairs(interactuables) do
+    local arriba, abajo = linea_vertical(punto.x, objeto.choque)
+    if arriba ~= math.huge then
+      if punto.y < arriba then
+        assert(sonda:detras_de(objeto), "por encima de " .. objeto.nombre .. " queda detras")
+      elseif punto.y > abajo then
+        assert(not sonda:detras_de(objeto), "por debajo de " .. objeto.nombre .. " queda delante")
+      end
+    end
+  end
+end
+
 local semilla = 20261109
 local function azar(n)
   semilla = (semilla * 1103515245 + 12345) % 2147483648

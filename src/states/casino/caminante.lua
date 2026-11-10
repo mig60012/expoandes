@@ -49,4 +49,9 @@ function Caminante:mas_cercano(objetos, alcance)
   return elegido
 end
 
+function Caminante:detras_de(objeto)
+  local linea = objeto.linea
+  return self.y < linea.y + linea.pendiente * (self.x - linea.x)
+end
+
 return Caminante

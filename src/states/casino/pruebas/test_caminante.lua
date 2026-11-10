@@ -64,4 +64,11 @@ c = nuevo(150, 150)
 assert(c:mas_cercano({ lejos_mesa, cerca_mesa }, 100) == cerca_mesa, "elige la mesa mas cercana a sus pies")
 assert(c:mas_cercano({ lejos_mesa, cerca_mesa }, 30) == nil, "nada fuera del alcance")
 
+local recta = { linea = { x = 150, y = 200, pendiente = -0.5 } }
+assert(c:detras_de(recta), "por encima de la linea queda detras")
+c = nuevo(150, 260)
+assert(not c:detras_de(recta), "por debajo de la linea queda delante")
+c = nuevo(250, 160)
+assert(not c:detras_de(recta), "la linea inclinada cambia con la posicion")
+
 print("test_caminante: ok")
