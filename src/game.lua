@@ -24,6 +24,7 @@ function Game.load()
         casino_wins = 0,
       },
     }),
+    time_of_day = 2, -- 0 = mañana, 1 = tarde, 2 = noche (por ahora)
     state_machine = StateMachine,
   }
 
