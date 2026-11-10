@@ -54,4 +54,41 @@ vista, apuesta = nueva()
 vista:keypressed("escape")
 assert(not cancelado, "escape queda libre para la pausa")
 
+local impresos = {}
+local love_real = love
+love = {
+  graphics = setmetatable({
+    print = function(texto)
+      impresos[#impresos + 1] = texto
+    end,
+  }, {
+    __index = function()
+      return function() end
+    end,
+  }),
+}
+
+apuesta = Apuesta.new({ minimo = 2, dinero = 50 })
+vista = VistaApuesta.new({
+  apuesta = apuesta,
+  salto_chico = 1,
+  salto_grande = 10,
+  titulo = "Mesa",
+  renglones = function(actual)
+    return { "Apuesta " .. actual.monto, "Tope " .. actual.maximo }
+  end,
+})
+vista:keypressed("up")
+vista:draw(1600, 900, {
+  getHeight = function()
+    return 30
+  end,
+})
+love = love_real
+
+assert(impresos[1] == "Mesa", "dibuja el titulo que recibe")
+assert(impresos[2] == "Apuesta 3", "dibuja el monto actual de la apuesta")
+assert(impresos[3] == "Tope 50", "dibuja cada renglon que recibe")
+assert(#impresos == 3, "no dibuja textos propios")
+
 print("test_vista_apuesta: ok")
