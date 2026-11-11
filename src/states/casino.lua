@@ -20,6 +20,7 @@ local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local SALTO_CHICO, SALTO_GRANDE = 1, 10
 local JUGADAS_POR_DIA, CANSANCIO = 6, 0.08
 local EMPATE = 1
+local TARDE, NOCHE = 1, 2
 
 local TEXTOS = {
   blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
@@ -177,6 +178,7 @@ function casino:abrir(nodo)
   self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
     if opcion and opcion.salir then
+      self.context.time_of_day = self.jornada:completa() and NOCHE or TARDE
       self:anotar("salir")
       self.context.state_machine:switch("transicion")
     end

@@ -54,20 +54,22 @@ love = {
 local casino = require("src/states/casino")
 
 local cambios = {}
-local progreso
+local progreso, contexto
 
 local function entrar(dinero)
   casino:leave()
   progreso = Progress.new({ values = { casino_games_today = 4, casino_wins = 0 } })
-  casino:enter({
+  contexto = {
     economy = Economy.new(dinero),
     progress = progreso,
+    time_of_day = 0,
     state_machine = {
       switch = function(_, nombre)
         cambios[#cambios + 1] = nombre
       end,
     },
-  })
+  }
+  casino:enter(contexto)
 end
 
 local function junto_a(nombre)
@@ -260,6 +262,38 @@ entrar(2)
 junto_a("poker")
 pulsar("z", "z")
 assert(jugadas_guardadas() == 0, "un rechazo no se guarda como jugada")
+
+local function salir_por_la_puerta()
+  casino.jugador.x, casino.jugador.y = 1925, 810
+  casino:update(0)
+  pulsar("return")
+  return contexto.time_of_day
+end
+
+local function jugar_veces(n)
+  junto_a("ruleta")
+  for _ = 1, n do
+    pulsar("z", "return", "z")
+  end
+end
+
+entrar(30)
+assert(salir_por_la_puerta() == 1, "sin jugar sale de tarde")
+assert(cambios[#cambios] == "transicion", "y pasa a la transicion")
+
+entrar(30)
+jugar_veces(5)
+assert(salir_por_la_puerta() == 1, "con 5 jugadas sale de tarde")
+
+entrar(30)
+jugar_veces(6)
+assert(salir_por_la_puerta() == 2, "con 6 jugadas sale de noche")
+
+entrar(30)
+casino.jugador.x, casino.jugador.y = 1925, 810
+casino:update(0)
+pulsar("down", "return")
+assert(contexto.time_of_day == 0 and casino.dialogo == nil, "responder No no cambia la hora")
 
 love = love_real
 print("test_casino: ok")
