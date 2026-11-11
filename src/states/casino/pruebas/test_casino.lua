@@ -1,4 +1,5 @@
 local Economy = require("src/systems/economy")
+local Progress = require("src/systems/progress")
 local Plano = require("src/states/casino/plano")
 
 local love_real = love
@@ -53,11 +54,14 @@ love = {
 local casino = require("src/states/casino")
 
 local cambios = {}
+local progreso
 
 local function entrar(dinero)
   casino:leave()
+  progreso = Progress.new({ values = { casino_games_today = 4, casino_wins = 0 } })
   casino:enter({
     economy = Economy.new(dinero),
+    progress = progreso,
     state_machine = {
       switch = function(_, nombre)
         cambios[#cambios + 1] = nombre
@@ -232,6 +236,30 @@ espiar_dinero()
 junto_a("poker")
 pulsar("z")
 assert(#movimientos == 0, "un rechazo no mueve dinero")
+
+local function jugadas_guardadas()
+  return progreso:get_value("casino_games_today")
+end
+
+entrar(30)
+assert(jugadas_guardadas() == 0, "al entrar las jugadas del dia guardadas vuelven a 0")
+junto_a("ruleta")
+pulsar("z", "x")
+assert(jugadas_guardadas() == 0, "cancelar no se guarda como jugada")
+pulsar("z", "return", "z")
+assert(jugadas_guardadas() == 1, "cada apuesta confirmada se guarda en el progreso")
+for _ = 1, 5 do
+  pulsar("z", "return", "z")
+end
+assert(jugadas_guardadas() == 6, "el progreso llega a 6 jugadas")
+pulsar("z", "z")
+assert(jugadas_guardadas() == 6, "una mesa cerrada no suma al progreso")
+assert(progreso:get_value("casino_wins") == 0, "con el empate no hay victorias")
+
+entrar(2)
+junto_a("poker")
+pulsar("z", "z")
+assert(jugadas_guardadas() == 0, "un rechazo no se guarda como jugada")
 
 love = love_real
 print("test_casino: ok")
