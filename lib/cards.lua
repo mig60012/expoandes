@@ -34,9 +34,11 @@ function Card:init(definition, deck)
             CARD_WIDTH, CARD_HEIGHT, self.atlas)
     end
 end
+
 function Card:turn(progress)
     self.turning, self.turn_factor, self.turned = true, progress or 0, false
 end
+
 function Card:update(dt)
     if not self.turning then return end
     self.turn_factor = self.turn_factor + dt * (self.animation_speed or self.deck.animation_speed)
@@ -50,10 +52,12 @@ function Card:update(dt)
     end
     if self.turn_factor > 1 then self.turning = false end
 end
+
 function Card:draw(rotate)
     if not self.atlas or not self.front or not self.back then return end
     self.x, self.y = love.graphics.transformPoint(0, 0)
     love.graphics.push()
+    love.graphics.scale(1.5)
     if self.turning then
         love.graphics.scale(self.turned and (self.turn_factor * 2 - 1) or (1 - self.turn_factor * 2), 1)
     end
@@ -74,7 +78,9 @@ function Deck:init(config, definitions)
     end
     self.x, self.y = 0, 0
 end
+
 function Deck:count() return #self.game_cards end
+
 function Deck:shuffle(iterations)
     for _ = 1, iterations or 2 do
         for i = #self.game_cards, 2, -1 do
@@ -83,16 +89,19 @@ function Deck:shuffle(iterations)
         end
     end
 end
+
 function Deck:draw_card()
     local card = table.remove(self.game_cards)
     if card then card:turn() end
     return card
 end
+
 Deck.pick = Deck.draw_card
 function Deck:return_card(card)
     assert(card and card.deck == self, "card does not belong to this deck")
     self.game_cards[#self.game_cards + 1] = card
 end
+
 function Deck:reset()
     self.game_cards = {}
     for _, card in ipairs(self.cards_list) do
@@ -100,9 +109,11 @@ function Deck:reset()
         self.game_cards[#self.game_cards + 1] = card
     end
 end
+
 function Deck:update(dt)
     for _, card in ipairs(self.game_cards) do card:update(dt) end
 end
+
 function Deck:draw()
     love.graphics.push()
     for _, card in ipairs(self.game_cards) do
@@ -118,10 +129,12 @@ function Hand:init(config)
     self.animation_speed = config.animation_speed or 7
     self.cards, self.x, self.y, self.hover_card = {}, 0, 0, -1
 end
+
 function Hand:add(card)
     assert(card and card.deck, "a hand can only contain a card")
     self.cards[#self.cards + 1] = card
 end
+
 function Hand:draw_card(deck, amount)
     for _ = 1, amount or 1 do
         local card = deck:draw_card()
@@ -129,20 +142,23 @@ function Hand:draw_card(deck, amount)
         self:add(card)
     end
 end
+
 Hand.pick = Hand.draw_card
 function Hand:remove(index)
     local card = table.remove(self.cards, index)
     if card then card.deck:return_card(card) end
     return card
 end
+
 function Hand:update(dt)
     for _, card in ipairs(self.cards) do card:update(dt) end
     if not love.mouse then return end
     local mx, my = love.mouse.getPosition(); self.hover_card = -1
-    for i, card in ipairs(self.cards) do
-        if (mx - card.x)^2 + (my - card.y)^2 < 35^2 then self.hover_card = i end
-    end
+    --    for i, card in ipairs(self.cards) do
+    --        if (mx - card.x) ^ 2 + (my - card.y) ^ 2 < 35 ^ 2 then self.hover_card = i end
+    --    end
 end
+
 function Hand:draw(width)
     self.x, self.y = love.graphics.transformPoint(0, 0)
     if #self.cards == 0 then return end
@@ -153,6 +169,7 @@ function Hand:draw(width)
         card:draw(true); love.graphics.pop()
     end
 end
+
 function Hand:click()
     if self.hover_card < 1 then return false end
     self:remove(self.hover_card); self.hover_card = -1
@@ -185,12 +202,15 @@ function Cards.new(options)
     function factory:create_card(definition, deck)
         return new(Card, definition, deck)
     end
+
     function factory:create_deck(definitions)
         return new(Deck, self, definitions or standard_definitions())
     end
+
     function factory:create_hand()
         return new(Hand, self)
     end
+
     return factory
 end
 
