@@ -1,6 +1,8 @@
 local Poker = {}
 
 local Cards = require("lib/cards")
+local Bot = require("src/systems/poker_bot")
+local HoldemCard = require("holdem.card")
 
 local ATLAS = "assets/casino/poker/cards_atlas.png"
 local FONDO = love.graphics.newImage("assets/casino/poker/fondo_poker.png")
@@ -10,6 +12,29 @@ local FILTRO_ADD_ULTIMO = love.graphics.newImage("assets/casino/filtro_add_ultim
 
 local CARTAS_POR_JUGADOR = 2
 local CARTAS_COMUNALES = 5
+local DINERO_INICIAL_BOT = 1000
+local APUESTA_MINIMA = 10
+
+local SUIT_BY_NAME = {
+  spades = 1,
+  hearts = 2,
+  diamonds = 3,
+  clubs = 4,
+}
+
+local function convertir_carta(carta)
+  -- cards.lua representa el as como rango 1; holdem usa 14.
+  local rango = carta.rank == 1 and 14 or carta.rank
+  return HoldemCard.Card(rango, SUIT_BY_NAME[carta.suit])
+end
+
+local function convertir_mano(mano)
+  local cartas = {}
+  for _, carta in ipairs(mano.cards) do
+    cartas[#cartas + 1] = convertir_carta(carta)
+  end
+  return cartas
+end
 
 local function ocultar_carta(carta)
   carta.visible = false
@@ -37,6 +62,14 @@ local function preparar_mano(mano, cartas_visibles)
       ocultar_carta(carta)
     end
   end
+end
+
+local function crear_bots()
+  return {
+    Bot:new("Bot 2", DINERO_INICIAL_BOT, "Fish"),
+    Bot:new("Bot 3", DINERO_INICIAL_BOT, "Maniac"),
+    Bot:new("Bot 4", DINERO_INICIAL_BOT, "Nit"),
+  }
 end
 
 local function dibujar_mano(mano, x, y, ancho, escala)
@@ -147,6 +180,24 @@ function Poker:enter(context, machine)
   self.comunales:draw_card(self.baraja, CARTAS_COMUNALES)
   preparar_mano(self.comunales, 0)
   self.comunales_reveladas = 0
+
+  self.bots = crear_bots()
+  for indice, bot in ipairs(self.bots) do
+    local mano = convertir_mano(self.jugadores[indice + 1])
+    bot:receiveCards(mano[1], mano[2])
+  end
+  self.bot_actions = {}
+  self.holdem_board = {}
+  self.pot = 0
+  self:decidir_bots("preflop")
+end
+
+function Poker:decidir_bots(phase)
+  for indice, bot in ipairs(self.bots) do
+    local decision = bot:decideAction(phase, self.holdem_board, self.pot, 0, APUESTA_MINIMA)
+    self.bot_actions[indice] = decision
+    self.pot = self.pot + decision.amount
+  end
 end
 
 function Poker:keypressed(key)
@@ -173,6 +224,14 @@ function Poker:revelar_siguiente()
     mostrar_carta(self.comunales.cards[indice])
   end
   self.comunales_reveladas = siguiente
+
+  self.holdem_board = {}
+  for indice = 1, self.comunales_reveladas do
+    self.holdem_board[#self.holdem_board + 1] = convertir_carta(self.comunales.cards[indice])
+  end
+
+  local fase = siguiente == 3 and "flop" or siguiente == 4 and "turn" or "river"
+  self:decidir_bots(fase)
 end
 
 function Poker:update(dt)
@@ -196,7 +255,14 @@ local function dibujar_jugadores(estado, width, height)
   }
 
   for _, jugador in ipairs(jugadores) do
-    rotulo(jugador.nombre, jugador.x, jugador.y_rotulo, 180)
+    local etiqueta = jugador.nombre
+    if jugador.indice > 1 and estado.bot_actions then
+      local decision = estado.bot_actions[jugador.indice - 1]
+      if decision then
+        etiqueta = etiqueta .. "  " .. decision.action .. " (" .. decision.amount .. ")"
+      end
+    end
+    rotulo(etiqueta, jugador.x, jugador.y_rotulo, 260)
     dibujar_mano(estado.jugadores[jugador.indice], jugador.x, jugador.y_cartas, 150, jugador.escala)
   end
 end
@@ -245,6 +311,8 @@ end
 function Poker:leave()
   self.context, self.machine = nil, nil
   self.cartas, self.baraja, self.jugadores, self.comunales = nil, nil, nil, nil
+  self.bots, self.bot_actions, self.holdem_board = nil, nil, nil
+  self.pot = nil
   self.comunales_reveladas = nil
   self.fuente_titulo, self.fuente_indicaciones = nil, nil
   self.multiply_shader = nil
