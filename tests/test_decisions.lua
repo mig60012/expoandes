@@ -51,4 +51,8 @@ local spent, spend_error = Effects.apply_all({ { type = "spend_money", amount = 
 assert_error(spent, spend_error)
 assert(context.economy:get_money() == 6)
 
+context.progress:reset()
+assert(context.progress:get_flag("finished") == false)
+assert(context.progress:get_value("points") == 3)
+
 print("test_decisions: ok")
