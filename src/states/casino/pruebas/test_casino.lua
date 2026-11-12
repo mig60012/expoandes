@@ -57,7 +57,15 @@ love = {
 local casino = require("src/states/casino")
 
 local cambios = {}
-local progreso, contexto
+local progreso, contexto, abiertas
+
+local function mesa_de_prueba(nombre)
+  return {
+    enter = function(_, _, maquina, opciones)
+      abiertas[#abiertas + 1] = { nombre = nombre, maquina = maquina, opciones = opciones }
+    end,
+  }
+end
 
 local function entrar(dinero)
   casino:leave()
@@ -73,6 +81,12 @@ local function entrar(dinero)
     },
   }
   casino:enter(contexto)
+  abiertas = {}
+  casino.sub_estado.states = {
+    ruleta = mesa_de_prueba("ruleta"),
+    blackjack = mesa_de_prueba("blackjack"),
+    poker = mesa_de_prueba("poker"),
+  }
 end
 
 local function junto_a(nombre)
@@ -93,50 +107,43 @@ local function mensaje()
   return casino.dialogo and casino.dialogo.dialogo:current_line()
 end
 
+local function mesa()
+  return abiertas[#abiertas]
+end
+
+local function levantarse()
+  casino.sub_estado:switch(nil)
+end
+
 entrar(30)
 for nombre, minimo in pairs({ ruleta = 1, blackjack = 2, poker = 3 }) do
   junto_a(nombre)
   pulsar("z")
-  assert(casino.selector, "z junto a " .. nombre .. " abre el selector")
-  assert(casino.selector.apuesta.minimo == minimo, nombre .. " tiene su minimo")
-  assert(casino.selector.apuesta.monto == minimo, nombre .. " empieza en su minimo")
-  assert(casino.selector.apuesta.maximo == 30, "el tope es el dinero del jugador")
-  pulsar("x")
-  assert(casino.selector == nil and casino.dialogo == nil, "x cierra el selector sin mensaje")
+  assert(casino.sub_estado.current_name == nombre, "z junto a " .. nombre .. " abre su mesa")
+  assert(mesa().opciones.minimo == minimo, nombre .. " recibe su minimo")
+  levantarse()
+  assert(casino.sub_estado.current == nil, "al levantarse vuelve al salon")
 end
-
-junto_a("ruleta")
-pulsar("z", "up", "right")
-assert(casino.selector.apuesta.monto == 12, "las teclas llegan al selector")
-local x, y = casino.jugador.x, casino.jugador.y
-pulsadas.right = true
-casino:update(0.1)
-pulsadas.right = nil
-assert(casino.jugador.x == x and casino.jugador.y == y, "con el selector abierto no camina")
-pulsar("escape")
-assert(casino.selector, "escape no cierra el selector")
-pulsar("return")
-assert(casino.selector == nil, "confirmar cierra el selector")
-assert(mensaje() == "Mesa de ruleta. El juego todavía no está disponible.", "confirmar muestra el aviso de la mesa")
-pulsar("z")
-assert(casino.dialogo == nil, "z cierra el aviso")
 
 entrar(2)
 junto_a("poker")
 pulsar("z")
-assert(casino.selector == nil, "sin el minimo no abre el selector")
+assert(casino.sub_estado.current == nil, "sin el minimo no abre la mesa")
 assert(mensaje() == "El mínimo de esta mesa es 3 M y tienes 2 M.", "explica por que no puede sentarse")
+pulsar("z")
+assert(casino.dialogo == nil, "z cierra el aviso")
+junto_a("blackjack")
+pulsar("z")
+assert(casino.sub_estado.current_name == "blackjack", "con 2 M si alcanza para el blackjack")
 
 entrar(0)
 junto_a("ruleta")
 pulsar("z")
 assert(mensaje() == "El mínimo de esta mesa es 1 M y tienes 0 M.", "sin dinero no se sienta en ninguna mesa")
-
-entrar(30)
-junto_a("ruleta")
+pulsar("z", "f1")
+assert(contexto.economy:get_money() == 3, "F1 da 3 M de prueba en el salon")
 pulsar("z")
-casino:leave()
-assert(casino.selector == nil, "al salir del casino no queda el selector abierto")
+assert(casino.sub_estado.current_name == "ruleta", "con el dinero de prueba ya puede sentarse")
 
 local function cerca(a, b)
   return math.abs(a - b) < 0.000001
@@ -145,31 +152,39 @@ local RAPIDEZ = Plano.jugador.velocidad
 
 entrar(30)
 junto_a("ruleta")
-pulsar("z", "x")
-assert(casino.jornada.jugadas == 0, "cancelar no cuenta como jugada")
+pulsar("z")
+local opciones = mesa().opciones
+assert(opciones.puede_jugar(), "al empezar el dia se puede jugar")
 for _ = 1, 3 do
-  pulsar("z", "return", "z")
+  opciones.al_jugar(2)
 end
-assert(casino.jornada.jugadas == 3, "cada apuesta confirmada cuenta como jugada")
+assert(casino.jornada.jugadas == 3, "cada apuesta de la mesa cuenta como jugada")
+assert(progreso:get_value("casino_games_today") == 3, "las jugadas se guardan en el progreso")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.76), "con 3 jugadas camina al 76 %")
 for _ = 1, 3 do
-  pulsar("z", "return", "z")
+  opciones.al_jugar(1)
 end
-assert(casino.jornada.jugadas == 6, "llega a 6 jugadas")
+assert(not opciones.puede_jugar(), "con 6 jugadas la mesa ya no deja apostar")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.52), "con 6 jugadas camina al 52 %")
+local x, y = casino.jugador.x, casino.jugador.y
+pulsadas.right = true
+casino:update(0.1)
+pulsadas.right = nil
+assert(casino.jugador.x == x and casino.jugador.y == y, "sentado en la mesa no camina")
+levantarse()
 pulsar("z")
-assert(casino.selector == nil, "con 6 jugadas no se abre el selector")
+assert(casino.sub_estado.current == nil, "a las 6 jugadas no abre la mesa")
 assert(mensaje() == "Ya no quedan jugadas por hoy.", "a las 6 jugadas las mesas se cierran")
 pulsar("z")
-assert(casino.dialogo == nil and casino.jornada.jugadas == 6, "una mesa cerrada no suma jugadas")
+assert(casino.jornada.jugadas == 6, "una mesa cerrada no suma jugadas")
 
 entrar(2)
 junto_a("poker")
 pulsar("z", "z")
-assert(casino.jornada.jugadas == 0, "un rechazo no cuenta como jugada")
+assert(casino.jornada.jugadas == 0 and progreso:get_value("casino_games_today") == 0, "un rechazo no cuenta como jugada")
 
 entrar(30)
-assert(casino.jornada.jugadas == 0, "cada entrada al casino empieza un dia nuevo")
+assert(casino.jornada.jugadas == 0 and progreso:get_value("casino_games_today") == 0, "cada entrada al casino empieza un dia nuevo")
 assert(casino.jugador.velocidad == RAPIDEZ, "el dia nuevo empieza sin cansancio")
 
 local function historial()
@@ -178,93 +193,16 @@ end
 
 entrar(30)
 junto_a("ruleta")
-pulsar("z", "x", "z", "up", "return", "z")
-assert(historial() == "entrar, sentarse ruleta, cancelar ruleta, sentarse ruleta, apuesta ruleta 2", "anota sentarse, cancelar y apostar: " .. historial())
+pulsar("z")
+mesa().opciones.al_jugar(2)
+levantarse()
+pulsar("f1")
+assert(historial() == "entrar, sentarse ruleta, apuesta ruleta 2, dinero_prueba 3", "anota lo que pasa: " .. historial())
 
 entrar(2)
 junto_a("poker")
 pulsar("z", "z")
 assert(historial() == "entrar, rechazo poker", "anota el rechazo: " .. historial())
-
-entrar(30)
-junto_a("blackjack")
-for _ = 1, 6 do
-  pulsar("z", "return", "z")
-end
-pulsar("z", "z")
-assert(#casino.historial == 14, "cada jugada anota sentarse y apuesta")
-assert(casino.historial[14] == "mesa_cerrada blackjack", "anota la mesa cerrada")
-
-casino.jugador.x, casino.jugador.y = 1925, 810
-casino:update(0)
-assert(mensaje() == "¿Quieres salir del casino?", "pisar la puerta pregunta si salir")
-pulsar("return")
-assert(casino.historial[15] == "salir", "anota la salida")
-assert(cambios[#cambios] == "transicion", "al salir pasa a la transicion")
-
-casino:leave()
-assert(casino.historial == nil, "al salir del casino se libera el historial")
-
-local movimientos
-local function espiar_dinero()
-  movimientos = {}
-  local economia = casino.context.economy
-  local gastar, sumar = economia.spend_money, economia.add_money
-  function economia.spend_money(e, n)
-    movimientos[#movimientos + 1] = "cobra " .. n
-    return gastar(e, n)
-  end
-  function economia.add_money(e, n)
-    movimientos[#movimientos + 1] = "devuelve " .. n
-    return sumar(e, n)
-  end
-end
-
-entrar(30)
-espiar_dinero()
-junto_a("ruleta")
-pulsar("z", "x")
-assert(#movimientos == 0, "cancelar no mueve dinero")
-pulsar("z", "up", "up", "return")
-assert(table.concat(movimientos, ", ") == "cobra 3, devuelve 3", "la mesa cobra la apuesta y el empate la devuelve: " .. table.concat(movimientos, ", "))
-assert(casino.context.economy:get_money() == 30, "con el empate el dinero queda igual")
-
-entrar(5)
-espiar_dinero()
-junto_a("poker")
-pulsar("z", "right", "return")
-assert(table.concat(movimientos, ", ") == "cobra 5, devuelve 5", "puede apostar todo su dinero: " .. table.concat(movimientos, ", "))
-assert(casino.context.economy:get_money() == 5, "apostar todo con empate deja el mismo dinero")
-
-entrar(2)
-espiar_dinero()
-junto_a("poker")
-pulsar("z")
-assert(#movimientos == 0, "un rechazo no mueve dinero")
-
-local function jugadas_guardadas()
-  return progreso:get_value("casino_games_today")
-end
-
-entrar(30)
-assert(jugadas_guardadas() == 0, "al entrar las jugadas del dia guardadas vuelven a 0")
-junto_a("ruleta")
-pulsar("z", "x")
-assert(jugadas_guardadas() == 0, "cancelar no se guarda como jugada")
-pulsar("z", "return", "z")
-assert(jugadas_guardadas() == 1, "cada apuesta confirmada se guarda en el progreso")
-for _ = 1, 5 do
-  pulsar("z", "return", "z")
-end
-assert(jugadas_guardadas() == 6, "el progreso llega a 6 jugadas")
-pulsar("z", "z")
-assert(jugadas_guardadas() == 6, "una mesa cerrada no suma al progreso")
-assert(progreso:get_value("casino_wins") == 0, "con el empate no hay victorias")
-
-entrar(2)
-junto_a("poker")
-pulsar("z", "z")
-assert(jugadas_guardadas() == 0, "un rechazo no se guarda como jugada")
 
 local function salir_por_la_puerta()
   casino.jugador.x, casino.jugador.y = 1925, 810
@@ -275,14 +213,17 @@ end
 
 local function jugar_veces(n)
   junto_a("ruleta")
+  pulsar("z")
   for _ = 1, n do
-    pulsar("z", "return", "z")
+    mesa().opciones.al_jugar(1)
   end
+  levantarse()
 end
 
 entrar(30)
 assert(salir_por_la_puerta() == 1, "sin jugar sale de tarde")
 assert(cambios[#cambios] == "transicion", "y pasa a la transicion")
+assert(casino.historial[#casino.historial] == "salir", "anota la salida")
 
 entrar(30)
 jugar_veces(5)
@@ -297,6 +238,9 @@ casino.jugador.x, casino.jugador.y = 1925, 810
 casino:update(0)
 pulsar("down", "return")
 assert(contexto.time_of_day == 0 and casino.dialogo == nil, "responder No no cambia la hora")
+
+casino:leave()
+assert(casino.historial == nil and casino.jornada == nil, "al salir del casino se libera todo")
 
 local impresos
 love.graphics.print = function(texto)
@@ -315,13 +259,9 @@ end
 
 entrar(30)
 assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 6"), "al entrar se ve el dinero y las jugadas")
-junto_a("ruleta")
-pulsar("z", "up")
-assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 6", "Ruleta"), "con el selector abierto sigue a la vista")
-pulsar("return", "z")
-assert(en_pantalla("Dinero: 30 M", "Jugadas: 1 de 6"), "cada apuesta confirmada sube las jugadas en pantalla")
-contexto.economy:spend_money(5)
-assert(en_pantalla("Dinero: 25 M"), "muestra el dinero actual del juego")
+jugar_veces(1)
+contexto.economy:spend_money(2)
+assert(en_pantalla("Dinero: 28 M", "Jugadas: 1 de 6"), "muestra el dinero y las jugadas del dia")
 
 love = love_real
 print("test_casino: ok")

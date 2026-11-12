@@ -1,13 +1,15 @@
-local Apuesta = require("src/states/casino/apuesta")
 local Caminante = require("src/states/casino/caminante")
 local Colision = require("src/states/casino/colision")
 local Encuadre = require("src/states/casino/encuadre")
 local Jornada = require("src/states/casino/jornada")
 local Plano = require("src/states/casino/plano")
 local VistaDialogo = require("src/states/casino/dialogue")
-local VistaApuesta = require("src/states/casino/vista_apuesta")
 local Camara = require("lib/camera")
 local Dialogue = require("src/systems/dialogue")
+local CasinoStateMachine = require("src/states/casino/state_machine")
+local Poker = require("src/states/casino/poker/poker")
+local Blackjack = require("src/states/casino/blackjack/blackjack")
+local Ruleta = require("src/states/casino/ruleta/ruleta")
 
 local casino = {}
 
@@ -17,16 +19,9 @@ local TAMANO_LETRA = 18
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
-local SALTO_CHICO, SALTO_GRANDE = 1, 10
 local JUGADAS_POR_DIA, CANSANCIO = 6, 0.08
-local EMPATE = 1
 local TARDE, NOCHE = 1, 2
-
-local TEXTOS = {
-  blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
-  poker = "Mesa de póker. El juego todavía no está disponible.",
-  ruleta = "Mesa de ruleta. El juego todavía no está disponible.",
-}
+local DINERO_PRUEBA = 3
 
 local PISO = { 0.88, 0.88, 0.88 }
 local PARED_IZQUIERDA = { 0.74, 0.74, 0.74 }
@@ -127,14 +122,6 @@ local function dibujar_marcador(fuente, dinero, jornada)
   end
 end
 
-local function renglones_apuesta(apuesta)
-  return {
-    "Apuesta: " .. apuesta.monto .. " M",
-    "Mínimo: " .. apuesta.minimo .. " M     Tienes: " .. apuesta.maximo .. " M",
-    "Arriba/Abajo: " .. SALTO_CHICO .. " M     Derecha/Izquierda: " .. SALTO_GRANDE .. " M     Z: confirmar     X: cancelar",
-  }
-end
-
 function casino:encuadrar(dt)
   local ancho, alto = love.graphics.getDimensions()
   local zoom = Encuadre.zoom(ancho, alto, Plano.vista.ancho, Plano.vista.alto)
@@ -149,6 +136,12 @@ end
 
 function casino:enter(context)
   self.context = context
+  self.sub_estado = CasinoStateMachine.new({
+    blackjack = Blackjack,
+    poker = Poker,
+    ruleta = Ruleta,
+  })
+  self.sub_estado:enter(context)
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
   self.fotos = cargar_fotos()
@@ -178,9 +171,12 @@ function casino:enter(context)
 end
 
 function casino:leave()
+  if self.sub_estado then
+    self.sub_estado:leave()
+  end
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.selector, self.jornada = nil
-  self.historial = nil
+  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
+  self.jornada, self.historial = nil
 end
 
 function casino:anotar(...)
@@ -199,6 +195,13 @@ function casino:abrir(nodo)
   end)
 end
 
+function casino:jugada(mesa, monto)
+  self:anotar("apuesta", mesa, monto)
+  self.jornada:registrar_jugada()
+  self.context.progress:set_value("casino_games_today", self.jornada.jugadas)
+  self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
+end
+
 function casino:sentarse(mesa)
   if self.jornada:completa() then
     self:anotar("mesa_cerrada", mesa.interaccion)
@@ -206,51 +209,44 @@ function casino:sentarse(mesa)
     return
   end
   local minimo, dinero = MINIMOS[mesa.interaccion], self.context.economy:get_money()
-  local apuesta = Apuesta.new({
-    minimo = minimo,
-    dinero = dinero,
-    al_confirmar = function(monto)
-      self.selector = nil
-      self.context.economy:spend_money(monto)
-      self.context.economy:add_money(monto * EMPATE)
-      self:anotar("apuesta", mesa.interaccion, monto)
-      self.jornada:registrar_jugada()
-      self.context.progress:set_value("casino_games_today", self.jornada.jugadas)
-      self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
-      self:abrir({ speaker = mesa.etiqueta, text = TEXTOS[mesa.interaccion], ending = true })
-    end,
-    al_cancelar = function()
-      self.selector = nil
-      self:anotar("cancelar", mesa.interaccion)
-    end,
-  })
-  if not apuesta then
+  if dinero < minimo then
     self:anotar("rechazo", mesa.interaccion)
     self:abrir({ speaker = mesa.etiqueta, text = "El mínimo de esta mesa es " .. minimo .. " M y tienes " .. dinero .. " M.", ending = true })
     return
   end
   self:anotar("sentarse", mesa.interaccion)
-  self.selector = VistaApuesta.new({
-    apuesta = apuesta,
-    salto_chico = SALTO_CHICO,
-    salto_grande = SALTO_GRANDE,
-    titulo = mesa.etiqueta,
-    renglones = renglones_apuesta,
+  self.sub_estado:switch(mesa.interaccion, {
+    minimo = minimo,
+    puede_jugar = function()
+      return not self.jornada:completa()
+    end,
+    al_jugar = function(monto)
+      self:jugada(mesa.interaccion, monto)
+    end,
   })
 end
 
-function casino:keypressed(tecla)
+function casino:keypressed(tecla, scancode, isrepeat)
+  if self.sub_estado.current then
+    self.sub_estado:keypressed(tecla, scancode, isrepeat)
+    return
+  end
   if self.dialogo then
     self.dialogo:keypressed(tecla)
-  elseif self.selector then
-    self.selector:keypressed(tecla)
+  elseif tecla == "f1" then
+    self.context.economy:add_money(DINERO_PRUEBA)
+    self:anotar("dinero_prueba", DINERO_PRUEBA)
   elseif self.cercano and (tecla == "z" or tecla == "return") then
     self:sentarse(self.cercano)
   end
 end
 
 function casino:update(dt)
-  if not self.dialogo and not self.selector then
+  if self.sub_estado.current then
+    self.sub_estado:update(dt)
+    return
+  end
+  if not self.dialogo then
     local tecla = love.keyboard.isDown
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
@@ -266,6 +262,10 @@ function casino:update(dt)
 end
 
 function casino:draw()
+  if self.sub_estado.current then
+    self.sub_estado:draw()
+    return
+  end
   love.graphics.push("all")
   self.camara:attach()
   love.graphics.setFont(self.fuente)
@@ -282,19 +282,28 @@ function casino:draw()
       dibujar_mesa(objeto, imagen)
     end
   end
-  if self.cercano and not self.dialogo and not self.selector then
+  if self.cercano and not self.dialogo then
     dibujar_aviso(self.cercano, self.fuente)
   end
   self.camara:detach()
   local ancho, alto = love.graphics.getDimensions()
   dibujar_marcador(self.fuente_dialogo, self.context.economy:get_money(), self.jornada)
-  if self.selector then
-    self.selector:draw(ancho, alto, self.fuente_dialogo)
-  end
   if self.dialogo then
     self.dialogo:draw(ancho, alto, self.fuente_dialogo)
   end
   love.graphics.pop()
+end
+
+function casino:keyreleased(tecla, scancode)
+  if self.sub_estado.current then
+    self.sub_estado:keyreleased(tecla, scancode)
+  end
+end
+
+function casino:mousepressed(x, y, button, istouch, presses)
+  if self.sub_estado.current then
+    self.sub_estado:mousepressed(x, y, button, istouch, presses)
+  end
 end
 
 return casino

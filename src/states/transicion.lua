@@ -9,7 +9,7 @@ local noche_bg = love.graphics.newImage("assets/transicion/noche.PNG")
 local filtro_overlay = love.graphics.newImage("assets/transicion/Filtro_overlay.PNG")
 local player_pos = 0
 local DialogueView = require("src/states/transicion/dialogue")
-
+local light_flickering = false
 local function get_scene_layout(bg, w, h)
   local sw, sh = bg:getDimensions()
   local scale = h / sh
@@ -184,6 +184,15 @@ function transicion:update(dt)
     dir = dir + (h / 4) * dt
   end
   player_pos = player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)
+  if not light_flickering then
+    if love.math.random() > 0.99 then
+      light_flickering = true
+    end
+  else
+    if love.math.random() > 0.95 then
+      light_flickering = false
+    end
+  end
 end
 
 function transicion:keypressed(key)
@@ -214,11 +223,11 @@ function transicion:draw()
     apply_add_filter(self, filtro_add_tarde, x, scale)
     apply_add_filter(self, filtro_add_siempre, x, scale)
   else
-    apply_add_filter(self, filtro_luces_add, x, scale)
+    if not light_flickering then apply_add_filter(self, filtro_luces_add, x, scale) end
     apply_filter(self, filtro_overlay, x, scale, 1.0, w, h)
     apply_filter(self, filtro_color_burn, x, scale, 2.0, w, h)
     apply_filter(self, filtro_overlay, x, scale, 1.0, w, h)
-    apply_add_filter(self, filtro_luces_add, x, scale)
+    if not light_flickering then apply_add_filter(self, filtro_luces_add, x, scale) end
     apply_add_filter(self, filtro_add_siempre, x, scale)
   end
 
