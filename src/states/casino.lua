@@ -5,6 +5,10 @@ local Plano = require("src/states/casino/plano")
 local VistaDialogo = require("src/states/casino/dialogue")
 local Camara = require("lib/camera")
 local Dialogue = require("src/systems/dialogue")
+local CasinoStateMachine = require("src/states/casino/state_machine")
+local Poker = require("src/states/casino/poker/poker")
+local Blackjack = require("src/states/casino/blackjack/blackjack")
+local Ruleta = require("src/states/casino/ruleta/ruleta")
 
 local casino = {}
 
@@ -13,12 +17,6 @@ local ALTURA_CAMARA = 70
 local TAMANO_LETRA = 18
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
-
-local TEXTOS = {
-  blackjack = "Mesa de blackjack. El juego todavía no está disponible.",
-  poker = "Mesa de póker. El juego todavía no está disponible.",
-  ruleta = "Mesa de ruleta. El juego todavía no está disponible.",
-}
 
 local PISO = { 0.88, 0.88, 0.88 }
 local PARED_IZQUIERDA = { 0.74, 0.74, 0.74 }
@@ -119,6 +117,12 @@ end
 
 function casino:enter(context)
   self.context = context
+  self.sub_estado = CasinoStateMachine.new({
+    blackjack = Blackjack,
+    poker = Poker,
+    ruleta = Ruleta,
+  })
+  self.sub_estado:enter(context)
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
   self.fotos = cargar_fotos()
@@ -144,8 +148,11 @@ function casino:enter(context)
 end
 
 function casino:leave()
+  if self.sub_estado then
+    self.sub_estado:leave()
+  end
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
-  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta = nil
+  self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
 end
 
 function casino:abrir(nodo)
@@ -158,15 +165,25 @@ function casino:abrir(nodo)
   end)
 end
 
-function casino:keypressed(tecla)
+function casino:keypressed(tecla, scancode, isrepeat)
+  if self.sub_estado.current then
+    self.sub_estado:keypressed(tecla, scancode, isrepeat)
+    return
+  end
   if self.dialogo then
     self.dialogo:keypressed(tecla)
   elseif self.cercano and (tecla == "z" or tecla == "return") then
-    self:abrir({ speaker = self.cercano.etiqueta, text = TEXTOS[self.cercano.interaccion], ending = true })
+    if self.cercano.interaccion then
+      self.sub_estado:switch(self.cercano.interaccion)
+    end
   end
 end
 
 function casino:update(dt)
+  if self.sub_estado.current then
+    self.sub_estado:update(dt)
+    return
+  end
   if not self.dialogo then
     local tecla = love.keyboard.isDown
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
@@ -183,6 +200,10 @@ function casino:update(dt)
 end
 
 function casino:draw()
+  if self.sub_estado.current then
+    self.sub_estado:draw()
+    return
+  end
   love.graphics.push("all")
   self.camara:attach()
   love.graphics.setFont(self.fuente)
@@ -208,6 +229,18 @@ function casino:draw()
     self.dialogo:draw(ancho, alto, self.fuente_dialogo)
   end
   love.graphics.pop()
+end
+
+function casino:keyreleased(tecla, scancode)
+  if self.sub_estado.current then
+    self.sub_estado:keyreleased(tecla, scancode)
+  end
+end
+
+function casino:mousepressed(x, y, button, istouch, presses)
+  if self.sub_estado.current then
+    self.sub_estado:mousepressed(x, y, button, istouch, presses)
+  end
 end
 
 return casino
