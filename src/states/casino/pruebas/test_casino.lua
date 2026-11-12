@@ -29,6 +29,9 @@ love = {
     getHeight = function()
       return 900
     end,
+    getWidth = function()
+      return 1600
+    end,
   }, {
     __index = function()
       return function() end
@@ -294,6 +297,31 @@ casino.jugador.x, casino.jugador.y = 1925, 810
 casino:update(0)
 pulsar("down", "return")
 assert(contexto.time_of_day == 0 and casino.dialogo == nil, "responder No no cambia la hora")
+
+local impresos
+love.graphics.print = function(texto)
+  impresos[texto] = true
+end
+local function en_pantalla(...)
+  impresos = {}
+  casino:draw()
+  for _, texto in ipairs({ ... }) do
+    if not impresos[texto] then
+      return false
+    end
+  end
+  return true
+end
+
+entrar(30)
+assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 6"), "al entrar se ve el dinero y las jugadas")
+junto_a("ruleta")
+pulsar("z", "up")
+assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 6", "Ruleta"), "con el selector abierto sigue a la vista")
+pulsar("return", "z")
+assert(en_pantalla("Dinero: 30 M", "Jugadas: 1 de 6"), "cada apuesta confirmada sube las jugadas en pantalla")
+contexto.economy:spend_money(5)
+assert(en_pantalla("Dinero: 25 M"), "muestra el dinero actual del juego")
 
 love = love_real
 print("test_casino: ok")

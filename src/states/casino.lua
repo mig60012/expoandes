@@ -113,6 +113,20 @@ local function dibujar_aviso(objeto, fuente)
   love.graphics.print(texto, objeto.x - ancho / 2 + 15, objeto.y - ALTURA_AVISO - alto + 7)
 end
 
+local function dibujar_marcador(fuente, dinero, jornada)
+  local lineas = { "Dinero: " .. dinero .. " M", "Jugadas: " .. jornada.jugadas .. " de " .. jornada.maximo }
+  local renglon = fuente:getHeight()
+  local margen = renglon * 0.6
+  local ancho = math.max(fuente:getWidth(lineas[1]), fuente:getWidth(lineas[2])) + margen * 2
+  love.graphics.setFont(fuente)
+  love.graphics.setColor(PERSONAJE)
+  love.graphics.rectangle("fill", margen, margen, ancho, renglon * #lineas + margen * 2)
+  love.graphics.setColor(PISO)
+  for i, linea in ipairs(lineas) do
+    love.graphics.print(linea, margen * 2, margen * 2 + renglon * (i - 1))
+  end
+end
+
 local function renglones_apuesta(apuesta)
   return {
     "Apuesta: " .. apuesta.monto .. " M",
@@ -273,6 +287,7 @@ function casino:draw()
   end
   self.camara:detach()
   local ancho, alto = love.graphics.getDimensions()
+  dibujar_marcador(self.fuente_dialogo, self.context.economy:get_money(), self.jornada)
   if self.selector then
     self.selector:draw(ancho, alto, self.fuente_dialogo)
   end
