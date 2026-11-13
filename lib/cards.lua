@@ -178,9 +178,15 @@ function Card:draw_at(x, y, options)
         rotation = lerp(deal.start_rotation, rotation, settle)
         scale = scale * (1 + math.sin(progress * math.pi) * 0.16)
         height = math.sin(progress * math.pi) * 34
+    else
+        -- Pequeñas imperfecciones humanas: ninguna carta queda perfectamente
+        -- geométrica sobre la mesa.
+        rotation = rotation + math.sin(love.timer.getTime() * 0.9 + self.random) * 0.018
+        draw_y = draw_y + math.sin(love.timer.getTime() * 1.2 + self.random) * 1.2
     end
 
     self.x, self.y = draw_x, draw_y
+    self.rotation, self.scale = rotation, scale
     draw_card_image(self, draw_x, draw_y, rotation, scale, height, options.rotate)
 end
 

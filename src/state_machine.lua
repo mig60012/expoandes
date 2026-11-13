@@ -69,4 +69,16 @@ function state_machine:mousepressed(x, y, button, istouch, presses)
   end
 end
 
+function state_machine:mousemoved(x, y, dx, dy, istouch)
+  if self.current and self.current.mousemoved then
+    self.current:mousemoved(x, y, dx, dy, istouch)
+  end
+end
+
+function state_machine:mousereleased(x, y, button, istouch, presses)
+  if self.current and self.current.mousereleased then
+    self.current:mousereleased(x, y, button, istouch, presses)
+  end
+end
+
 return state_machine

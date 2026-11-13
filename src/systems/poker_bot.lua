@@ -124,9 +124,15 @@ function Bot:_call(amount_to_call)
   return self:_action("call", amount_to_call)
 end
 
-function Bot:_raise(amount_to_call, min_raise)
+function Bot:_raise(amount_to_call, min_raise, maximum, raise_allowed)
+  if raise_allowed == false then
+    return self:_call(amount_to_call)
+  end
   local incremento = math.max(1, min_raise)
   local cantidad = amount_to_call + incremento
+  if maximum and maximum > cantidad then
+    cantidad = cantidad + math.floor(math.random() * (maximum - cantidad))
+  end
 
   -- Si no puede superar la apuesta actual, la única acción legal es call.
   if self.money <= amount_to_call then
@@ -153,11 +159,11 @@ local function pot_odds(current_pot, amount_to_call)
   return amount_to_call / (current_pot + amount_to_call)
 end
 
-function Bot:_decide_preflop(strength, amount_to_call, min_raise)
+function Bot:_decide_preflop(strength, amount_to_call, min_raise, maximum, raise_allowed)
   -- La mano es jugable. El árbol decide entre subir y pagar.
   if strength >= self.W_Playable then
     if math.random() < self.W_Aggro then
-      return self:_raise(amount_to_call, min_raise)
+      return self:_raise(amount_to_call, min_raise, maximum, raise_allowed)
     end
     return self:_call(amount_to_call)
   end
@@ -165,7 +171,7 @@ function Bot:_decide_preflop(strength, amount_to_call, min_raise)
   -- Fish y Maniac pueden continuar con manos marginales. El Nit casi nunca
   -- entra en este camino porque su W_Playable es deliberadamente alto.
   if math.random() < self.W_Bluff then
-    return self:_raise(amount_to_call, min_raise)
+    return self:_raise(amount_to_call, min_raise, maximum, raise_allowed)
   end
   if amount_to_call > 0 and math.random() < self.W_Risk * 0.5 then
     return self:_call(amount_to_call)
@@ -173,11 +179,11 @@ function Bot:_decide_preflop(strength, amount_to_call, min_raise)
   return self:_check_or_fold(amount_to_call)
 end
 
-function Bot:_decide_postflop(strength, current_pot, amount_to_call, min_raise)
+function Bot:_decide_postflop(strength, current_pot, amount_to_call, min_raise, maximum, raise_allowed)
   -- Mano débil: farol ocasional; si no, no paga una apuesta.
   if strength < 0.35 then
     if math.random() < self.W_Bluff then
-      return self:_raise(amount_to_call, min_raise)
+      return self:_raise(amount_to_call, min_raise, maximum, raise_allowed)
     end
     return self:_check_or_fold(amount_to_call)
   end
@@ -197,12 +203,12 @@ function Bot:_decide_postflop(strength, current_pot, amount_to_call, min_raise)
   -- Mano fuerte: apuesta por valor si es agresivo; de lo contrario hace
   -- slowplay pagando o pasando cuando no hay apuesta previa.
   if math.random() < self.W_Aggro then
-    return self:_raise(amount_to_call, min_raise)
+    return self:_raise(amount_to_call, min_raise, maximum, raise_allowed)
   end
   return self:_call(amount_to_call)
 end
 
-function Bot:decideAction(phase, board_cards, current_pot, amount_to_call, min_raise)
+function Bot:decideAction(phase, board_cards, current_pot, amount_to_call, min_raise, maximum, raise_allowed)
   assert(VALID_PHASES[phase], "Unknown poker phase: " .. tostring(phase))
 
   local board = board_cards or {}
@@ -212,9 +218,9 @@ function Bot:decideAction(phase, board_cards, current_pot, amount_to_call, min_r
   local strength = self:_evaluate(phase, board)
 
   if phase == "preflop" then
-    return self:_decide_preflop(strength, call, raise)
+    return self:_decide_preflop(strength, call, raise, maximum, raise_allowed)
   end
-  return self:_decide_postflop(strength, pot, call, raise)
+  return self:_decide_postflop(strength, pot, call, raise, maximum, raise_allowed)
 end
 
 return Bot

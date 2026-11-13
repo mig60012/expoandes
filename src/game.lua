@@ -51,4 +51,12 @@ function Game.mousepressed(x, y, button, istouch, presses)
   StateMachine:mousepressed(x, y, button, istouch, presses)
 end
 
+function Game.mousemoved(x, y, dx, dy, istouch)
+  StateMachine:mousemoved(x, y, dx, dy, istouch)
+end
+
+function Game.mousereleased(x, y, button, istouch, presses)
+  StateMachine:mousereleased(x, y, button, istouch, presses)
+end
+
 return Game

@@ -34,10 +34,14 @@ function PokerGame:new(players, options)
     winners = {},
     payouts = {},
     evaluator = options.evaluator,
+    dealer_index = options.dealer_index or 1,
+    hand_number = 0,
+    max_hands = options.max_hands,
     -- La mesa visual puede desactivar esto para representar cada decisión de
     -- un bot antes de aplicarla. La lógica sin interfaz conserva el modo
     -- automático como comportamiento predeterminado.
     auto_bots = options.auto_bots ~= false,
+    raise_used = false,
   }, self)
 end
 
@@ -128,12 +132,15 @@ function PokerGame:act_current_bot()
     return false, "current player is not a bot"
   end
   local amount_to_call = self:get_amount_to_call(player)
+  local available_before = self:_stack(player)
   local decision = player.controller:decideAction(
     self.phase,
     self.board,
     self.pot,
     amount_to_call,
-    self.min_raise
+    self.min_raise,
+    available_before,
+    not self.raise_used
   )
   local ok, error_message = self:apply_action(player, decision, true)
   if not ok then
@@ -145,6 +152,7 @@ end
 
 function PokerGame:start_hand(hole_cards)
   assert(#self.players > 1, "A poker hand needs at least two players")
+  assert(not self.max_hands or self.hand_number < self.max_hands, "poker session is over")
 
   self.pot = 0
   self.phase = "preflop"
@@ -155,6 +163,8 @@ function PokerGame:start_hand(hole_cards)
   self.last_error = nil
   self.winners = {}
   self.payouts = {}
+  self.hand_number = self.hand_number + 1
+  self.raise_used = false
 
   for index, player in ipairs(self.players) do
     player.hole_cards = hole_cards and hole_cards[index] or {}
@@ -168,18 +178,35 @@ function PokerGame:start_hand(hole_cards)
     player.payout = 0
   end
 
-  -- Ciegas simples para que cada mano tenga un bote inicial. El jugador 2
-  -- pone la ciega pequeña y el jugador 3 la grande en este MVP.
+  -- La posición rota entre manos. El jugador siguiente al dealer pone la
+  -- ciega pequeña y el siguiente pone la grande.
   self.min_raise = self.base_raise
+  local small_blind_index, big_blind_index
   if #self.players == 2 then
-    self:_post_blind(self.players[2], self.big_blind)
+    small_blind_index = self.dealer_index
+    big_blind_index = self:_index_after(self.dealer_index)
   else
-    self:_post_blind(self.players[2], self.small_blind)
-    self:_post_blind(self.players[3], self.big_blind)
+    small_blind_index = self:_index_after(self.dealer_index)
+    big_blind_index = self:_index_after(small_blind_index)
   end
+  self.small_blind_index, self.big_blind_index = small_blind_index, big_blind_index
+  self:_post_blind(self.players[small_blind_index], self.small_blind)
+  self:_post_blind(self.players[big_blind_index], self.big_blind)
 
-  self.current_player_index = 1
+  if #self.players == 2 then
+    self.current_player_index = self.dealer_index
+  else
+    self.current_player_index = self:_index_after(big_blind_index)
+  end
   self:_skip_unavailable_player()
+end
+
+function PokerGame:_index_after(index)
+  return index % #self.players + 1
+end
+
+function PokerGame:rotate_dealer()
+  self.dealer_index = self:_index_after(self.dealer_index)
 end
 
 function PokerGame:_skip_unavailable_player()
@@ -285,6 +312,9 @@ function PokerGame:apply_action(player_or_index, decision, already_paid)
     return false, "use check when there is nothing to call"
   end
   if action == "raise" then
+    if self.raise_used then
+      return false, "only one raise is allowed per betting round"
+    end
     local minimum = amount_to_call + self.min_raise
     local all_in = amount == available and available > amount_to_call
     if amount < minimum and not all_in then
@@ -310,6 +340,7 @@ function PokerGame:apply_action(player_or_index, decision, already_paid)
     local raise_size = player.round_bet - self.current_bet
     self.current_bet = player.round_bet
     self.min_raise = math.max(self.min_raise, raise_size)
+    self.raise_used = true
   end
 
   if action ~= "fold" and self:_stack(player) <= 0 then
@@ -332,9 +363,10 @@ function PokerGame:advance_phase(board, phase)
   self.phase = phase
   self.current_bet = 0
   self.min_raise = self.big_blind > 0 and self.big_blind or self.base_raise
+  self.raise_used = false
   self.can_advance = false
   self.status = "betting"
-  self.current_player_index = 1
+  self.current_player_index = self:_index_after(self.dealer_index)
 
   for _, player in ipairs(self.players) do
     player.round_bet = 0

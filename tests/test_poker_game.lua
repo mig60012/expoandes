@@ -23,10 +23,10 @@ local game = PokerGame:new({
 })
 
 game:start_hand({ {}, {} })
-assert(game.pot == 10, "la ciega grande debe crear el bote inicial")
+assert(game.pot == 15, "las ciegas deben crear el bote inicial")
 local ok = game:apply_action(1, { action = "check", amount = 0 })
 assert(not ok, "no se puede hacer check frente a una apuesta")
-ok = game:apply_action(1, { action = "call", amount = 10 })
+ok = game:apply_action(1, { action = "call", amount = 5 })
 assert(ok and game.can_advance, "la ronda debe cerrarse tras igualar")
 
 game:advance_phase({}, "flop")
