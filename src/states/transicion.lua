@@ -197,6 +197,8 @@ end
 
 function transicion:keypressed(key)
   self.dialogue:keypressed(key)
+  if key == "c" then    self.context.state_machine:switch("casino")
+  end
 end
 
 function transicion:draw()
