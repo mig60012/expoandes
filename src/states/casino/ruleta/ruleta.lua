@@ -16,14 +16,16 @@ local function posicion(numero)
   end
 end
 
-function Ruleta:enter(context, machine)
+function Ruleta:enter(context, machine, opciones)
   self.context, self.machine = context, machine
+  self.opciones = opciones or {}
+  self.minimo = self.opciones.minimo or MINIMO
   self.recursos = Vista.recursos()
   self.indices = {}
   for i, apuesta in ipairs(Apuestas.lista) do
     self.indices[apuesta.nombre] = i
   end
-  self.reloj, self.angulo_rueda, self.monto = 0, 0, MINIMO
+  self.reloj, self.angulo_rueda, self.monto = 0, 0, self.minimo
   self.eleccion, self.giro, self.encima, self.angulo_pelota = nil
   self.raton_visible = love.mouse.isVisible()
   love.mouse.setVisible(true)
@@ -33,7 +35,7 @@ end
 function Ruleta:leave()
   love.mouse.setVisible(self.raton_visible)
   love.mouse.setCursor()
-  self.context, self.machine, self.recursos, self.indices, self.giro, self.jugadas, self.encima = nil
+  self.context, self.machine, self.opciones, self.recursos, self.indices, self.giro, self.jugadas, self.encima = nil
 end
 
 function Ruleta:etapa_nueva(etapa, mensaje)
@@ -47,24 +49,29 @@ end
 function Ruleta:apostar()
   if not self.eleccion then
     self.mensaje = "Primero elige una apuesta en el paño."
-  elseif self:dinero() < MINIMO then
-    self.mensaje = "No te alcanza: necesitas al menos " .. MINIMO .. " M."
+  elseif self.opciones.puede_jugar and not self.opciones.puede_jugar() then
+    self.mensaje = "Ya no quedan jugadas por hoy."
+  elseif self:dinero() < self.minimo then
+    self.mensaje = "No te alcanza: necesitas al menos " .. self.minimo .. " M."
   else
-    self.monto = math.max(MINIMO, math.min(self.monto, self:dinero()))
+    self.monto = math.max(self.minimo, math.min(self.monto, self:dinero()))
     self:etapa_nueva("monto")
   end
 end
 
 function Ruleta:cambiar_monto(paso)
-  self.monto = math.max(MINIMO, math.min(self.monto + paso, self:dinero()))
+  self.monto = math.max(self.minimo, math.min(self.monto + paso, self:dinero()))
 end
 
 function Ruleta:deslizar(x)
-  self.monto = MINIMO + math.floor(Vista.deslizador(x) * (self:dinero() - MINIMO) + 0.5)
+  self.monto = self.minimo + math.floor(Vista.deslizador(x) * (self:dinero() - self.minimo) + 0.5)
 end
 
 function Ruleta:girar()
   self.context.economy:spend_money(self.monto)
+  if self.opciones.al_jugar then
+    self.opciones.al_jugar(self.monto)
+  end
   self.jugadas = { { apuesta = Apuestas.lista[self.eleccion], monto = self.monto } }
   self.numero = Apuestas.girar(self.jugadas, love.math.random, CODICIA)
   self.giro = Giro.nuevo(posicion(self.numero), #Rueda.orden, self.angulo_rueda)
@@ -170,7 +177,7 @@ function Ruleta:draw()
     fundido = (self.etapa == "mesa" or self.etapa == "giro") and 1 - aparicion or 0,
     apuesta = self.eleccion and Apuestas.lista[self.eleccion],
     monto = self.monto,
-    minimo = MINIMO,
+    minimo = self.minimo,
     maximo = self:dinero(),
     dinero = self:dinero(),
     mensaje = self.mensaje,
