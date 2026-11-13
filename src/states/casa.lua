@@ -38,12 +38,11 @@ local COLOR_PISO = { 0.45, 0.30, 0.20 }
 -- Cuando tengas la imagen, solo ponla en la ruta indicada.
 -- ============================================================
 local RUTAS_SPRITES = {
-  fondo       = "assets/casa/fondo.png",       -- 1280x720, la casa completa
+  fondo       = "assets/casa/fondo.png",       -- 1920x1080 (16:9), la casa completa (de dia)
   cursor      = "assets/casa/cursor.png",      -- el "personaje" (reemplaza al mouse)
-  puerta      = "assets/casa/puerta.png",
-  maletin     = "assets/casa/maletin.png",
-  foto_hija   = "assets/casa/foto_hija.png",
   celular     = "assets/casa/celular.png",
+  -- La puerta, el maletin y la foto de la hija YA ESTAN DIBUJADOS en el fondo,
+  -- por eso no tienen sprite propio: solo son zonas clickeables invisibles.
 }
 
 local function cargar_sprite(ruta)
@@ -133,13 +132,27 @@ function Casa:enter(context)
   -- x, y, w, h : zona clickeable (y donde se dibuja el sprite)
   -- sprite     : llave dentro de RUTAS_SPRITES
   -- color      : color del placeholder mientras no haya imagen
+  -- en_fondo   : true si el objeto ya esta dibujado en el fondo (solo zona clickeable)
   -- accion     : funcion que se ejecuta al hacer click
   -- ----------------------------------------------------------
   self.objetos = {
     {
-      -- Puerta: a la derecha
-      id = "puerta", nombre = "Puerta (ir al casino)", sprite = "puerta",
-      x = 1090, y = 280, w = 130, h = 250,
+      -- Foto de la hija: el cuadro inclinado sobre la mesita, al lado de la cama.
+      -- Va PRIMERO en la lista porque su zona se solapa un poco con la de la puerta
+      -- (el cuadro esta enfrente de ella) y asi gana el click.
+      id = "foto_hija", nombre = "Foto de tu hija",
+      en_fondo = true, -- ya esta dibujada en el fondo: no se dibuja placeholder
+      x = 627, y = 288, w = 146, h = 209,
+      color = { 0.90, 0.75, 0.80 }, -- solo se usa si falta el fondo
+      accion = function(casa)
+        casa:abrir_dialogo("Foto de tu hija", "Es por ella que haces todo esto.")
+      end,
+    },
+    {
+      -- Puerta: al fondo, en el centro-derecha de la pared
+      id = "puerta", nombre = "Puerta (ir al casino)",
+      en_fondo = true,
+      x = 693, y = 83, w = 206, h = 354,
       color = { 0.50, 0.30, 0.15 },
       accion = function(casa)
         -- Cambia de estado: sale de la casa y va al casino
@@ -147,27 +160,20 @@ function Casa:enter(context)
       end,
     },
     {
-      -- Maletin: a la izquierda, mas abajo (en el piso)
-      id = "maletin", nombre = "Maletin (ir al trabajo)", sprite = "maletin",
-      x = 160, y = 576, w = 160, h = 84,
+      -- Maletin: a la izquierda, colgado/apoyado contra la pared
+      id = "maletin", nombre = "Maletin (ir al trabajo)",
+      en_fondo = true,
+      x = 0, y = 95, w = 137, h = 315,
       color = { 0.25, 0.20, 0.15 },
       accion = function(casa)
         casa.context.state_machine:switch("trabajo")
       end,
     },
     {
-      -- Foto de la hija: pequena, en el medio
-      id = "foto_hija", nombre = "Foto de tu hija", sprite = "foto_hija",
-      x = 608, y = 240, w = 64, h = 76,
-      color = { 0.90, 0.75, 0.80 },
-      accion = function(casa)
-        casa:abrir_dialogo("Foto de tu hija", "Es por ella que haces todo esto.")
-      end,
-    },
-    {
-      -- Celular: esquina superior derecha
+      -- Celular: NO esta en la imagen, asi que se mantiene el placeholder de siempre
+      -- (rectangulo oscuro con el texto "celular"). Esta sobre la cama.
       id = "celular", nombre = "Celular", sprite = "celular",
-      x = 1180, y = 28, w = 64, h = 100,
+      x = 330, y = 490, w = 64, h = 100,
       color = { 0.20, 0.20, 0.25 },
       accion = function(casa)
         casa:abrir_celular()
@@ -331,8 +337,10 @@ function Casa:draw()
 
   -- 2) Objetos
   for _, obj in ipairs(self.objetos) do
-    local sprite = self.sprites[obj.sprite]
-    if sprite then
+    local sprite = obj.sprite and self.sprites[obj.sprite]
+    if obj.en_fondo and self.sprites.fondo then
+      -- Ya esta en la imagen de fondo: no se dibuja nada encima
+    elseif sprite then
       love.graphics.setColor(1, 1, 1)
       love.graphics.draw(sprite, obj.x, obj.y, 0,
         obj.w / sprite:getWidth(), obj.h / sprite:getHeight())
