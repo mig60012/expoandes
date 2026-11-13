@@ -5,6 +5,7 @@ local Bot = require("src/systems/poker_bot")
 local PokerGame = require("src/systems/poker_game")
 local HoldemCard = require("holdem.card")
 local Analysis = require("holdem.analysis")
+local Audio = require("src/systems/audio")
 
 local ATLAS = "assets/casino/poker/cards_atlas.png"
 local LIGHT = love.graphics.newImage("assets/casino/poker/light_poker.png")
@@ -19,12 +20,25 @@ local CARTAS_COMUNALES = 5
 local DINERO_INICIAL_BOT = 1000
 local APUESTA_MINIMA = 10
 local DEAL_DELAY = 0.085
+-- Cada vez que te sientas en la mesa tienes derecho a jugar este numero de manos.
+-- Al terminar la ultima se te pide levantarte y la sesion cuenta como UNA jugada
+-- del dia en el casino.
+local MANOS_POR_SESION = 3
 
 local SUIT_BY_NAME = {
   spades = 1,
   hearts = 2,
   diamonds = 3,
   clubs = 4,
+}
+
+-- lib/cards.lua llama a card.sound:setPitch/stop/play justo cuando una carta
+-- gira y se ve de canto (la mitad de la animacion). Este objeto cumple esa
+-- interfaz y reproduce el sonido de volteo con el sistema de audio del juego.
+local SONIDO_VOLTEO = {
+  setPitch = function() end,
+  stop = function() end,
+  play = function() Audio.reproducir("card_flip") end,
 }
 
 local function convertir_carta(carta)
@@ -171,8 +185,11 @@ local function layout_fondo(width, height)
   return x, y, escala
 end
 
-function Poker:enter(context, machine)
+function Poker:enter(context, machine, opciones)
   self.context, self.machine = context, machine
+  -- opciones las pasa el casino: { minimo, puede_jugar, al_jugar }
+  self.opciones = opciones or {}
+  self.jugada_registrada = false
   self.fuente_ui = love.graphics.newFont("assets/AntonSC-Regular.ttf", 20)
   self.fuente_boton = love.graphics.newFont("assets/AntonSC-Regular.ttf", 22)
   self.multiply_shader = crear_multiply_shader()
@@ -188,7 +205,7 @@ function Poker:enter(context, machine)
     big_blind = 10,
     min_raise = APUESTA_MINIMA,
     dealer_index = 1,
-    max_hands = 3,
+    max_hands = MANOS_POR_SESION,
     auto_bots = false,
     evaluator = function(hole_cards, board_cards)
       return Analysis.evaluate(hole_cards, board_cards)
@@ -205,6 +222,9 @@ end
 function Poker:iniciar_mano()
   if self.game.hand_number > 0 then self.game:rotate_dealer() end
   self.baraja = self.cartas:create_deck()
+  for _, carta in ipairs(self.baraja.cards_list) do
+    carta.sound = SONIDO_VOLTEO
+  end
   self.baraja:shuffle(5)
   self.baraja:exite(0.55)
   self.jugadores = {}
@@ -266,6 +286,7 @@ function Poker:programar_reparto_inicial()
     carta:deal_from(layout.deck.x, layout.deck.y, x, y, {
       delay = orden * DEAL_DELAY,
       duration = 0.46,
+      on_arrive = function() Audio.reproducir("card_flip") end,
     })
   end
   self.input_lock = orden * DEAL_DELAY + 0.34
@@ -286,6 +307,8 @@ function Poker:crear_fichas_apuesta(indice, amount)
   if indice == 4 then anchor_x, anchor_y = seat.x - 112 * seat.scale, seat.y + 8 end
   if indice == 3 then anchor_x, anchor_y = seat.x, seat.y - 66 * seat.scale end
   local cantidad = math.min(8, math.max(1, math.ceil(amount / APUESTA_MINIMA)))
+  -- Cada pila nueva representa fichas que llegan a la mesa (incluidas las ciegas).
+  Audio.reproducir("chip_place")
   for numero = 1, cantidad do
     self.table_chips[#self.table_chips + 1] = {
       owner = indice,
@@ -316,12 +339,14 @@ function Poker:registrar_accion(player, action)
   local indice = self:indice_jugador(player)
   if not indice or not action then return end
   self:crear_fichas_apuesta(indice, action.amount or 0)
+  -- El sonido de fichas se reproduce en crear_fichas_apuesta().
   if action.action == "fold" then self:deslizar_fold(indice) end
 end
 
 function Poker:mover_fichas_al_pozo()
   if self.round_chips_collected then return end
   self.round_chips_collected, self.collecting_chips = true, true
+  if #self.table_chips > 0 then Audio.reproducir("chip_place") end
   local width, height = love.graphics.getDimensions()
   for indice, ficha in ipairs(self.table_chips) do
     ficha.state, ficha.time, ficha.duration = "moving", 0, 0.56 + (indice % 3) * 0.08
@@ -375,15 +400,32 @@ end
 function Poker:terminar_mano()
   self:mover_fichas_al_pozo()
   self.game:finish_hand()
+  local se_revelan_cartas = false
   for indice, mano in ipairs(self.jugadores) do
     if self.game.players[indice].folded then
       preparar_mano(mano, 0)
     else
+      -- Las cartas de los rivales pasan de boca abajo a boca arriba.
+      if indice > 1 and not mano.cards[1].visible then se_revelan_cartas = true end
       preparar_mano(mano, CARTAS_POR_JUGADOR)
     end
   end
+  if se_revelan_cartas then Audio.reproducir("card_flip") end
   self.showdown_time = 0
-  self.session_finished = self.game.hand_number >= 3
+  self.session_finished = self.game.hand_number >= MANOS_POR_SESION
+  self:registrar_jugada_si_termino()
+end
+
+-- Terminar las manos de la sesion cuenta como una jugada del dia (igual que cada
+-- giro en la ruleta). Se avisa al casino una sola vez por sesion, en cuanto acaba
+-- la ultima mano, aunque despues el jugador salga con Esc en vez de con LEAVE.
+function Poker:registrar_jugada_si_termino()
+  if not self.session_finished or self.jugada_registrada then return end
+  self.jugada_registrada = true
+  if self.opciones.al_jugar then
+    -- El poker usa sus propias fichas, no el dinero (M) del casino: monto 0.
+    self.opciones.al_jugar(0)
+  end
 end
 
 function Poker:preparar_turno_bot()
@@ -488,7 +530,7 @@ function Poker:actualizar_botones()
     }
   elseif self.game.status == "showdown" and not self.collecting_chips and self.session_finished then
     definiciones = {
-      { label = "LEAVE", action = function() self.machine:switch("transicion") end, color = { 0.30, 0.12, 0.14 } },
+      { label = "LEAVE", action = function() self.machine:switch(nil) end, color = { 0.30, 0.12, 0.14 } },
     }
   end
 
@@ -895,7 +937,7 @@ function Poker:draw()
 end
 
 function Poker:leave()
-  self.context, self.machine = nil, nil
+  self.context, self.machine, self.opciones = nil, nil, nil
   self.cartas, self.baraja, self.jugadores, self.comunales = nil, nil, nil, nil
   self.bots, self.holdem_board, self.game = nil, nil, nil
   self.comunales_reveladas, self.input_lock = nil, nil

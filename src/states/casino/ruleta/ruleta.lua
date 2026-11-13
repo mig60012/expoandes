@@ -3,10 +3,14 @@ local Rueda = require(RUTA .. "rueda")
 local Apuestas = require(RUTA .. "apuestas")
 local Giro = require(RUTA .. "giro")
 local Vista = require(RUTA .. "vista")
+local Audio = require("src/systems/audio")
 
 local Ruleta = {}
 
 local CODICIA, DINERO_PRUEBA, MINIMO, PAUSA = 100, 3, 1, 0.8
+-- El sonido de la pelota se ajusta a la duracion del giro: si cambias
+-- Giro.duracion, el audio se acelera o frena hasta este limite.
+local TONO_MIN, TONO_MAX = 0.8, 1.25
 
 local function posicion(numero)
   for i, n in ipairs(Rueda.orden) do
@@ -33,9 +37,11 @@ function Ruleta:enter(context, machine, opciones)
 end
 
 function Ruleta:leave()
+  Audio.detener(self.sonido_giro)
   love.mouse.setVisible(self.raton_visible)
   love.mouse.setCursor()
   self.context, self.machine, self.opciones, self.recursos, self.indices, self.giro, self.jugadas, self.encima = nil
+  self.sonido_giro = nil
 end
 
 function Ruleta:etapa_nueva(etapa, mensaje)
@@ -76,9 +82,16 @@ function Ruleta:girar()
   self.numero = Apuestas.girar(self.jugadas, love.math.random, CODICIA)
   self.giro = Giro.nuevo(posicion(self.numero), #Rueda.orden, self.angulo_rueda)
   self:etapa_nueva("giro")
+  -- El audio dura lo mismo que el giro (6 s): rueda a la vista, cae en su casilla
+  -- hacia el segundo 3 y se asienta hacia el 4.5, como la animacion.
+  local duracion_audio = Audio.duracion("ball_spin")
+  local tono = duracion_audio and math.max(TONO_MIN, math.min(TONO_MAX, duracion_audio / self.giro.duracion)) or 1
+  self.sonido_giro = Audio.reproducir("ball_spin", { tono = tono })
 end
 
 function Ruleta:cobrar()
+  Audio.detener(self.sonido_giro)
+  self.sonido_giro = nil
   local numero, apuesta = self.numero, Apuestas.lista[self.eleccion]
   local pago = Apuestas.pago(self.jugadas, numero)
   self.context.economy:add_money(pago)
@@ -121,6 +134,7 @@ function Ruleta:mousepressed(x, y, boton)
   if not zona then
     return
   end
+  Audio.reproducir("clack")
   if zona.apuesta then
     self.eleccion, self.mensaje = self.indices[zona.apuesta], nil
   elseif zona.accion == "apostar" then
