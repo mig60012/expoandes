@@ -106,7 +106,8 @@ end
 function casino:encuadrar(dt)
   local ancho, alto = love.graphics.getDimensions()
   local zoom = Encuadre.zoom(ancho, alto, Plano.vista.ancho, Plano.vista.alto)
-  local x, y = Encuadre.centro(self.jugador.x, self.jugador.y - ALTURA_CAMARA, ancho, alto, zoom, Plano.ancho, Plano.alto)
+  local x, y = Encuadre.centro(self.jugador.x, self.jugador.y - ALTURA_CAMARA, ancho, alto, zoom, Plano.ancho, Plano
+  .alto)
   if dt then
     x = Encuadre.suavizar(self.camara.x, x, dt, RIGIDEZ_CAMARA)
     y = Encuadre.suavizar(self.camara.y, y, dt, RIGIDEZ_CAMARA)

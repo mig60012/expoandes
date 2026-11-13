@@ -1,6 +1,7 @@
 assert(loadfile("tests/test_decisions.lua"))()
 assert(loadfile("tests/test_dialogue.lua"))()
 assert(loadfile("tests/test_dialogue_routes.lua"))()
+assert(loadfile("tests/test_poker_game.lua"))()
 assert(loadfile("src/states/casino/pruebas/test_colision.lua"))()
 assert(loadfile("src/states/casino/pruebas/test_plano.lua"))()
 assert(loadfile("src/states/casino/pruebas/test_caminante.lua"))()
