@@ -52,6 +52,10 @@ function Ruleta:dinero()
   return self.context.economy:get_money()
 end
 
+function Ruleta:listo_para_salir()
+  return self.etapa == "resultado"
+end
+
 function Ruleta:apostar()
   if not self.eleccion then
     self.mensaje = "Primero elige una apuesta en el paño."
