@@ -105,13 +105,13 @@ end
 
 local function mesa_layout(width, height)
   return {
-    deck = { x = width * 0.71, y = height * 0.39, scale = 0.66 },
-    community = { x = width / 2, y = height * 0.47, width = 460, scale = 0.78 },
+    deck = { x = width * 0.71, y = height * 0.39, scale = 0.94 },
+    community = { x = width / 2, y = height * 0.47, width = 460, scale = 1.10 },
     players = {
-      { x = width / 2,    y = height * 0.74, width = 170, scale = 0.82 },
-      { x = width * 0.19, y = height * 0.52, width = 145, scale = 0.66, shear = -0.18 },
-      { x = width / 2,    y = height * 0.30, width = 145, scale = 0.66 },
-      { x = width * 0.81, y = height * 0.52, width = 145, scale = 0.66, shear = 0.18 },
+      { x = width / 2,    y = height * 0.74, width = 170, scale = 1.07 },
+      { x = width * 0.19, y = height * 0.52, width = 145, scale = 0.98, shear = -0.18 },
+      { x = width / 2,    y = height * 0.25, width = 145, scale = 0.95 },
+      { x = width * 0.81, y = height * 0.52, width = 145, scale = 0.98, shear = 0.18 },
     },
   }
 end
@@ -370,7 +370,7 @@ function Poker:mover_fichas_al_pozo()
     ficha.state, ficha.time, ficha.duration = "moving", 0, 0.56 + (indice % 3) * 0.08
     ficha.from_x, ficha.from_y = ficha.x, ficha.y
     ficha.to_x = width / 2 + (math.random() - 0.5) * 36
-    ficha.to_y = height * 0.57 + (math.random() - 0.5) * 14
+    ficha.to_y = height * 0.60 + (math.random() - 0.5) * 14
   end
 end
 
