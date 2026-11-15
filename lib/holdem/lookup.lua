@@ -7,7 +7,11 @@ end
 
 local setmetatable = setmetatable
 
-module('holdem.lookup')
+local loaded = package.loaded['holdem.lookup']
+local module = type(loaded) == "table" and loaded or {}
+package.loaded['holdem.lookup'] = module
+setmetatable(module, { __index = _G })
+_ENV = module
 
 _VERSION = '0.01'
 
@@ -26985,4 +26989,3 @@ Tables.Seven.even_xors_to_odd_xors_to_rank = {
             [2096]= 3052, [4176]= 3051, [545]= 3054, [4354]= 3051,
             [84]= 3056 }
         }
-

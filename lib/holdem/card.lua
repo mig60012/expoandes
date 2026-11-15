@@ -2,7 +2,11 @@ local error = error
 local pairs = pairs
 local setmetatable = setmetatable
 
-module('holdem.card')
+local loaded = package.loaded['holdem.card']
+local module = type(loaded) == "table" and loaded or {}
+package.loaded['holdem.card'] = module
+setmetatable(module, { __index = _G })
+_ENV = module
 
 _VERSION = '0.01'
 

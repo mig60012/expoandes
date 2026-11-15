@@ -35,14 +35,19 @@ local function separacion(a, b)
   return math.min(vertices_a_bordes(a, b), vertices_a_bordes(b, a))
 end
 
-assert(Plano.vista.ancho < Plano.ancho and Plano.vista.alto < Plano.alto, "la camara ve solo una parte del salon")
+assert(Plano.vista.ancho < Plano.ancho and Plano.vista.alto < Plano.alto, "la camara recorta el salon y sigue al jugador")
 
 local izquierda, derecha, abajo = math.huge, -math.huge, -math.huge
 for i = 1, #Plano.suelo, 2 do
   izquierda, derecha = math.min(izquierda, Plano.suelo[i]), math.max(derecha, Plano.suelo[i])
   abajo = math.max(abajo, Plano.suelo[i + 1])
 end
-assert(izquierda <= 40 and derecha >= Plano.ancho - 40 and abajo >= Plano.alto - 40, "el piso llega hasta donde llega la camara")
+assert(izquierda > 0 and derecha < Plano.ancho and abajo < Plano.alto,
+  "se conservan los limites de colision del piso isometrico")
+assert(#Plano.suelo == 12 and #Plano.capas == 4, "el piso y las paredes conservan el retranqueo de la referencia")
+assert(#Plano.puerta.marco > 40, "la puerta tiene un arco, no un marco rectangular")
+assert(Colision.dentro(Plano.puerta.centro.x, Plano.puerta.centro.y, Plano.puerta.zona),
+  "el punto de salida esta en la nueva puerta")
 
 local inicio = Plano.inicio
 assert(Colision.dentro(inicio.x, inicio.y, Plano.suelo), "el inicio esta en el piso")
@@ -69,8 +74,15 @@ end
 
 assert(total == 3, "por ahora solo se interactua con las tres mesas")
 assert(interacciones.blackjack and interacciones.poker and interacciones.ruleta)
-assert(cuantos.tragamonedas == 4 and cuantos.columna == 4, "la decoracion es minima y solida")
-assert(cuantos["dueño"] == 1 and cuantos.barra == 1 and cuantos.caja == 1, "estan los lugares principales")
+assert(#Plano.objetos == 3, "solo hay las tres mesas de la referencia, sin los obstaculos antiguos")
+local por_juego = {}
+for _, objeto in ipairs(Plano.objetos) do por_juego[objeto.interaccion] = objeto end
+assert(por_juego.blackjack.foto.archivo == "mesa_blackjack" and por_juego.poker.foto.archivo == "mesa_poker"
+  and por_juego.ruleta.foto.archivo == "mesa_ruleta", "se conserva la asignacion de formas a juegos")
+assert(por_juego.blackjack.x < por_juego.poker.x and por_juego.blackjack.y < por_juego.poker.y,
+  "blackjack queda arriba a la izquierda de poker")
+assert(por_juego.ruleta.x > por_juego.poker.x and por_juego.ruleta.x < Plano.puerta.centro.x,
+  "ruleta queda a la derecha y la puerta en la pared derecha")
 
 local function sin_rendija(a, b, que)
   local d = separacion(a, b)

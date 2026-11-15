@@ -4,7 +4,11 @@ local print = print
 local table = table
 local unpack = unpack
 
-module('holdem.prob')
+local loaded = package.loaded['holdem.prob']
+local module = type(loaded) == "table" and loaded or {}
+package.loaded['holdem.prob'] = module
+setmetatable(module, { __index = _G })
+_ENV = module
 
 function comb(a, r)
     if r > #a then
@@ -87,4 +91,3 @@ end
 function symmetric(a, b)
 	return difference(union(a, b), intersection(a, b))
 end
-

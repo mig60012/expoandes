@@ -20,6 +20,7 @@
 --]]
 
 local Casa = {}
+local DialogueView = require("src/states/casa/dialogue")
 
 -- Tamano del espacio virtual en el que se disena todo
 local VW, VH = 1280, 720
@@ -38,10 +39,10 @@ local COLOR_PISO = { 0.45, 0.30, 0.20 }
 -- Cuando tengas la imagen, solo ponla en la ruta indicada.
 -- ============================================================
 local RUTAS_SPRITES = {
-  fondo       = "assets/casa/fondo.png",       -- 1920x1080 (16:9), la casa completa (de dia)
+  fondo   = "assets/casa/fondo.png",  -- 1920x1080 (16:9), la casa completa (de dia)
   fondo_noche = "assets/casa/fondo_noche.png",
-  cursor      = "assets/casa/cursor.png",      -- el "personaje" (reemplaza al mouse)
-  celular     = "assets/casa/celular.png",
+  cursor  = "assets/casa/cursor.png", -- el "personaje" (reemplaza al mouse)
+  celular = "assets/casa/celular.png",
   -- La puerta, el maletin y la foto de la hija YA ESTAN DIBUJADOS en el fondo,
   -- por eso no tienen sprite propio: solo son zonas clickeables invisibles.
 }
@@ -125,11 +126,12 @@ function Casa:enter(context)
   self.mx, self.my = self:a_virtual(love.mouse.getPosition())
 
   -- Estado de las capas de interaccion
-  self.hover = nil        -- objeto bajo el mouse
-  self.dialogo = nil      -- cuadro de texto abierto
-  self.panel = nil        -- pestana abierta (celular)
-  self.hover_item = nil   -- opcion de la pestana bajo el mouse
-  self.cinematica = nil   -- cinematica activa
+  self.hover = nil      -- objeto bajo el mouse
+  self.dialogue = nil   -- diálogo narrativo abierto
+  self.dialogue_error = nil
+  self.panel = nil      -- pestana abierta (celular)
+  self.hover_item = nil -- opcion de la pestana bajo el mouse
+  self.cinematica = nil -- cinematica activa
 
   -- ----------------------------------------------------------
   -- OBJETOS INTERACTIVOS (coordenadas virtuales, espacio de 1280x720)
@@ -144,29 +146,42 @@ function Casa:enter(context)
       -- Foto de la hija: el cuadro inclinado sobre la mesita, al lado de la cama.
       -- Va PRIMERO en la lista porque su zona se solapa un poco con la de la puerta
       -- (el cuadro esta enfrente de ella) y asi gana el click.
-      id = "foto_hija", nombre = "Foto de tu hija",
+      id = "foto_hija",
+      nombre = "Foto de tu hija",
       en_fondo = true, -- ya esta dibujada en el fondo: no se dibuja placeholder
-      x = 627, y = 288, w = 146, h = 209,
+      x = 627,
+      y = 288,
+      w = 146,
+      h = 209,
       color = { 0.90, 0.75, 0.80 }, -- solo se usa si falta el fondo
       accion = function(casa)
-        casa:abrir_dialogo("Foto de tu hija", "Es por ella que haces todo esto.")
+        casa:iniciar_dialogo_hija()
       end,
     },
     {
       -- Puerta: al fondo, en el centro-derecha de la pared
-      id = "puerta", nombre = "Puerta (salir a la calle)",
+      id = "puerta",
+      nombre = "Puerta (ir al casino)",
       en_fondo = true,
-      x = 693, y = 83, w = 206, h = 354,
+      x = 693,
+      y = 83,
+      w = 206,
+      h = 354,
       color = { 0.50, 0.30, 0.15 },
       accion = function(casa)
-        casa.context.state_machine:switch("transicion")
+        -- Cambia de estado: sale de la casa y va al casino
+        casa.context.state_machine:switch("transicion", true)
       end,
     },
     {
       -- Maletin: a la izquierda, colgado/apoyado contra la pared
-      id = "maletin", nombre = "Maletin (ir al trabajo)",
+      id = "maletin",
+      nombre = "Maletin (ir al trabajo)",
       en_fondo = true,
-      x = 0, y = 95, w = 137, h = 315,
+      x = 0,
+      y = 95,
+      w = 137,
+      h = 315,
       color = { 0.25, 0.20, 0.15 },
       accion = function(casa)
         casa.context.state_machine:switch("trabajo")
@@ -175,14 +190,42 @@ function Casa:enter(context)
     {
       -- Celular: NO esta en la imagen, asi que se mantiene el placeholder de siempre
       -- (rectangulo oscuro con el texto "celular"). Esta sobre la cama.
-      id = "celular", nombre = "Celular", sprite = "celular",
-      x = 330, y = 490, w = 64, h = 100,
+      id = "celular",
+      nombre = "Celular",
+      sprite = "celular",
+      x = 330,
+      y = 490,
+      w = 64,
+      h = 100,
       color = { 0.20, 0.20, 0.25 },
       accion = function(casa)
         casa:abrir_celular()
       end,
     },
   }
+
+  local day_flow = self.context.day_flow
+  if day_flow and day_flow:is_active() then
+    local current_day = self.context.progress:get_value("current_day")
+    local games = self.context.progress:get_value("casino_games_today")
+    if current_day == 2 and games == 0 then
+      self:iniciar_dialogo_dia2()
+    elseif current_day == 3 and games == 0 then
+      self:iniciar_dialogo_dia3()
+    elseif current_day == 4 and games == 0 then
+      self:iniciar_dialogo_dia4()
+    elseif current_day == 3 and (games == 3 or games == 6) then
+      self:iniciar_decision_carro()
+    elseif current_day == 4 and (games == 3 or games == 6) then
+      self:iniciar_dialogo_noche_dia4()
+    elseif current_day == 5 and not day_flow.decisions.morning_complete then
+      self:iniciar_dialogo_dia5()
+    elseif current_day == 5 and not self.context.progress:get_outcome("N5") then
+      self:iniciar_decision_economica()
+    elseif games == 3 then
+      self:iniciar_decision_regreso()
+    end
+  end
 end
 
 function Casa:leave()
@@ -194,12 +237,112 @@ end
 -- ============================================================
 -- DIALOGO
 -- ============================================================
-function Casa:abrir_dialogo(titulo, texto)
-  self.dialogo = { titulo = titulo, texto = texto }
+function Casa:iniciar_dialogo_hija()
+  self.dialogue = DialogueView.new(self.context, "day_1.lua", function()
+    self.dialogue = nil
+  end)
+end
+
+function Casa:iniciar_decision_regreso()
+  self.dialogue = DialogueView.new(self.context, "day_1_return.lua", function(view, choice)
+    self.dialogue = nil
+    if choice and choice.action == "work" then
+      self.context.state_machine:switch("trabajo")
+    elseif choice and choice.action == "family" then
+      local finished = self.context.day_flow:record_return_home()
+      if finished then
+        self.context.day_flow:advance_after_finished_day()
+        self.context.time_of_day = 0
+        self.context.state_machine:switch("casa")
+      end
+    end
+  end)
+end
+
+function Casa:iniciar_dialogo_dia2()
+  self.dialogue = DialogueView.new(self.context, "day_2.lua", function()
+    self.dialogue = nil
+  end)
+end
+
+function Casa:iniciar_dialogo_dia3()
+  self.dialogue = DialogueView.new(self.context, "day_3.lua", function()
+    self.dialogue = nil
+  end)
+end
+
+function Casa:iniciar_dialogo_dia4()
+  self.dialogue = DialogueView.new(self.context, "day_4.lua", function()
+    self.dialogue = nil
+  end)
+end
+
+function Casa:iniciar_dialogo_noche_dia4()
+  self.dialogue = DialogueView.new(self.context, "day_4_night.lua", function()
+    self.dialogue = nil
+    local flow = self.context.day_flow
+    local finished = flow:finish_day()
+    if finished then
+      flow:advance_after_finished_day()
+      self.context.time_of_day = 0
+      self.context.state_machine:switch("casa")
+    end
+  end)
+end
+
+function Casa:iniciar_dialogo_dia5()
+  self.dialogue = DialogueView.new(self.context, "day_5.lua", function(view, choice)
+    self.dialogue = nil
+    local flow = self.context.day_flow
+    flow:mark_morning_complete()
+    if choice and choice.action == "work" then
+      self.context.state_machine:switch("trabajo")
+    elseif choice and choice.action == "casino" then
+      self.context.state_machine:switch("transicion", true)
+    end
+  end)
+end
+
+function Casa:iniciar_decision_economica()
+  self.dialogue = DialogueView.new(self.context, "day_5_economic.lua", function(view, choice)
+    self.dialogue = nil
+    if not choice or not choice.action then return end
+    local flow = self.context.day_flow
+    local ok, error_message = flow:record_economic_decision(choice.action)
+    if not ok then
+      self.dialogue_error = error_message
+      return
+    end
+    local finished = flow:finish_day()
+    if finished then
+      self.context.state_machine:switch("finales")
+    end
+  end)
+end
+
+function Casa:iniciar_decision_carro()
+  self.dialogue = DialogueView.new(self.context, "day_3_return.lua", function(view, choice)
+    self.dialogue = nil
+    if not choice or not choice.action then return end
+
+    local day_flow = self.context.day_flow
+    local recorded, error_message = day_flow:record_car_decision(choice.action)
+    if not recorded then
+      self.dialogue_error = error_message
+      return
+    end
+
+    local finished = day_flow:finish_day()
+    if finished then
+      day_flow:advance_after_finished_day()
+      self.context.time_of_day = 0
+      self.context.state_machine:switch("casa")
+    end
+  end)
 end
 
 function Casa:cerrar_dialogo()
-  self.dialogo = nil
+  self.dialogue = nil
 end
 
 -- ============================================================
@@ -259,7 +402,10 @@ function Casa:abrir_celular()
 
   self.panel = {
     titulo = "Celular",
-    x = px, y = py, w = pw, h = ph,
+    x = px,
+    y = py,
+    w = pw,
+    h = ph,
     cerrar = { x = px + pw - 42, y = py + 12, w = 30, h = 30 }, -- boton X
     items = opciones,
     mensaje = nil,
@@ -285,7 +431,10 @@ function Casa:update(dt)
   self.hover_item = nil
 
   -- Con una cinematica o un dialogo abierto no se detecta nada mas
-  if self.cinematica or self.dialogo then return end
+  if self.cinematica or self.dialogue then
+    if self.dialogue then self.dialogue:update(dt) end
+    return
+  end
 
   -- Pestana del celular: detectar la opcion bajo el mouse
   if self.panel then
@@ -442,24 +591,14 @@ function Casa:draw()
     end
   end
 
-  -- 5) Dialogo
-  if self.dialogo then
-    love.graphics.setColor(0, 0, 0, 0.5)
-    self:cubrir_ventana()
-
-    local bw, bh = 640, 200
-    local bx, by = (VW - bw) / 2, (VH - bh) / 2
-    love.graphics.setColor(0.15, 0.15, 0.2)
-    love.graphics.rectangle("fill", bx, by, bw, bh, 10, 10)
+  -- 5) Diálogo narrativo
+  if self.dialogue then
+    self.dialogue:draw()
+  end
+  if self.dialogue_error then
+    love.graphics.setColor(1, 0.3, 0.3)
+    love.graphics.print(self.dialogue_error, 30, VH - 40)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("line", bx, by, bw, bh, 10, 10)
-
-    love.graphics.setFont(self.fuente_titulo)
-    love.graphics.print(self.dialogo.titulo, bx + 24, by + 18)
-    love.graphics.setFont(self.fuente)
-    love.graphics.printf(self.dialogo.texto, bx + 24, by + 70, bw - 48, "left")
-    love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.print("Click para cerrar", bx + 24, by + bh - 38)
   end
 
   -- 6) Cinematica (cubre toda la ventana)
@@ -518,9 +657,9 @@ function Casa:mousepressed(px, py, button)
     return
   end
 
-  -- Capa 2: dialogo (click cierra)
-  if self.dialogo then
-    self:cerrar_dialogo()
+  -- Capa 2: diálogo narrativo
+  if self.dialogue then
+    self.dialogue:mousepressed(x, y, button)
     return
   end
 
@@ -537,17 +676,33 @@ function Casa:mousepressed(px, py, button)
   end
 
   -- Capa 4: objetos de la casa
-  for _, obj in ipairs(self.objetos) do
-    if punto_en_rect(x, y, obj) and obj.accion then
-      obj.accion(self, self.context)
+  if self.hover and self.hover.accion then
+    self.hover.accion(self, self.context)
+    return
+  end
+
+  -- También se acepta el clic directo aunque todavía no se haya ejecutado
+  -- `update` (útil para entradas sintéticas y para el primer frame).
+  for _, objeto in ipairs(self.objetos) do
+    if punto_en_rect(x, y, objeto) and objeto.accion then
+      objeto.accion(self, self.context)
       return
     end
+  end
+
+  -- La etiqueta de entrada de la puerta también funciona como hotspot.
+  if x >= 0 and x <= 220 and y >= 480 and y <= 560 then
+    self.context.state_machine:switch("transicion", true)
   end
 end
 
 function Casa:keypressed(key)
+  if self.dialogue then
+    self.dialogue:keypressed(key)
+    return
+  end
   if key == "escape" then
-    if self.dialogo then
+    if self.dialogue then
       self:cerrar_dialogo()
     elseif self.panel then
       self:cerrar_panel()

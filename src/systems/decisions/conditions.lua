@@ -48,6 +48,16 @@ function Conditions.evaluate(condition, context)
     return compare(progress:get_value(condition.key), condition.value)
   end
 
+  if condition.type == "outcome" then
+    if type(condition.key) ~= "string" or type(condition.value) ~= "string" then
+      return invalid("outcome requires a string key and string value")
+    end
+    if not progress:has_outcome(condition.key) then
+      return invalid("unknown outcome '" .. condition.key .. "'")
+    end
+    return progress:get_outcome(condition.key) == condition.value
+  end
+
   if condition.type == "all" or condition.type == "any" then
     if type(condition.conditions) ~= "table" then
       return invalid(condition.type .. " requires a conditions table")
