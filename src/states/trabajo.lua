@@ -12,6 +12,17 @@ end
 function Trabajo:update(dt)
 	self.tiempo = self.tiempo + dt
 	if self.tiempo >= DURACION then
+		local day_flow = self.context.day_flow
+		if day_flow and day_flow:is_active() then
+			day_flow:record_work()
+			if self.context.progress:get_value("casino_games_today") == 3 then
+				local finished = day_flow:finish_day()
+				if finished then
+					day_flow:advance_after_finished_day()
+					self.context.time_of_day = 0
+				end
+			end
+		end
 		self.context.state_machine:switch("casa")
 	end
 end

@@ -16,6 +16,7 @@ function state_machine.load(context)
     casino = require("src/states/casino"),
     transicion = require("src/states/transicion"),
     animacion = require("src/states/animacion"),
+    finales = require("src/states/finales"),
   }
 
   state_machine.context = context or {}

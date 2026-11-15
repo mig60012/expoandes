@@ -194,6 +194,18 @@ function casino:abrir(nodo, al_terminar)
     if al_terminar then
       al_terminar(opcion)
     elseif opcion and opcion.salir and self:puede_salir() then
+      local day_flow = self.context.day_flow
+      if day_flow and day_flow:is_active() then
+        local recorded, error_message = day_flow:record_games(self.jornada.jugadas)
+        if not recorded then
+          self:abrir({
+            speaker = "Sistema",
+            text = error_message,
+            ending = true,
+          })
+          return
+        end
+      end
       self:anotar("salir")
       self.context.state_machine:switch("transicion")
     end

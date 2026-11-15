@@ -3,6 +3,7 @@
 local StateMachine = require("src/state_machine")
 local Economy = require("src/systems/economy")
 local Progress = require("src/systems/progress")
+local DayFlow = require("src/systems/day_flow")
 
 local Game = {}
 
@@ -16,19 +17,33 @@ function Game.load()
         wife_knows_about_bets = false,
         daughter_savings_used = false,
         homeless_man_saw_player = false,
-        casino_decision_made = false,
-        casino_extra_games_accepted = false,
       },
       values = {
         family_points = 0,
         debt_percentage = 0,
         casino_games_today = 0,
         casino_wins = 0,
+        current_day = 1,
+      },
+      outcome_options = {
+        N1 = { "A", "B", "C" },
+        N2 = { "A", "B", "C" },
+        N3 = { "A", "B", "C", "D" },
+        N5 = { "A", "B", "C" },
       },
     }),
     time_of_day = 0, -- 0 = mañana, 1 = tarde, 2 = noche
+    rules = {
+      -- Valores narrativos configurables: el guion no fija estas cantidades.
+      family_points_threshold = 2,
+      work_debt_percentage = 20,
+      mortgage_debt_percentage = 80,
+      daughter_savings_debt_percentage = 40,
+    },
     state_machine = StateMachine,
   }
+  Game.context.day_flow = DayFlow.new(Game.context)
+  Game.context.day_flow:start_day(1)
 
   StateMachine.load(Game.context)
 end
