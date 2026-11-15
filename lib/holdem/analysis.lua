@@ -14,7 +14,11 @@ local pairs = pairs
 local table = table
 local type = type
 
-module('holdem.analysis')
+local loaded = package.loaded['holdem.analysis']
+local module = type(loaded) == "table" and loaded or {}
+package.loaded['holdem.analysis'] = module
+setmetatable(module, { __index = _G })
+_ENV = module
 
 local function card_to_binary5(card)
     local b_mask = bit.lshift(1, (14 + card.rank))
@@ -243,4 +247,3 @@ function evaluate(hand, board)
 
     return rank, (hands_beaten / #possible_opponent_hands)
 end
-

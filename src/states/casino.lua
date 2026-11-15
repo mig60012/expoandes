@@ -20,7 +20,6 @@ local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local JUGADAS_POR_BLOQUE, CANSANCIO = 3, 0.08
 local NOCHE = 2
-local DINERO_PRUEBA = 3
 
 local PISO = { 0.85, 0.85, 0.85 }
 local FIGURA = { 0.8, 0.8, 0.8 }
@@ -297,10 +296,7 @@ function casino:keypressed(tecla, scancode, isrepeat)
     self:revisar_limite()
     return
   end
-  if tecla == "f1" then
-    self.context.economy:add_money(DINERO_PRUEBA)
-    self:anotar("dinero_prueba", DINERO_PRUEBA)
-  elseif self.cercano and (tecla == "z" or tecla == "return") then
+  if self.cercano and (tecla == "z" or tecla == "return") then
     self:sentarse(self.cercano)
   end
 end

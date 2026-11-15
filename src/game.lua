@@ -9,7 +9,9 @@ local Game = {}
 
 function Game.load()
   Game.context = {
-    economy = Economy.new(),
+    -- Capital inicial suficiente para acceder a las mesas sin usar atajos de
+    -- desarrollo; las ganancias y pérdidas siguen siendo las del casino.
+    economy = Economy.new(10),
     progress = Progress.new({
       flags = {
         car_sold = false,
