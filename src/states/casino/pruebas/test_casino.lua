@@ -20,8 +20,9 @@ love = {
     newCanvas = function()
       return {}
     end,
-    newImage = function()
-      error("la prueba no carga imagenes")
+    newImage = function(path)
+      if path:find("src/states/casino/assets/", 1, true) then error("sin foto") end
+      return { getWidth = function() return 1920 end, getHeight = function() return 1080 end }
     end,
     getDimensions = function()
       return 1600, 900
@@ -64,12 +65,13 @@ local function mesa_de_prueba(nombre)
     enter = function(_, _, maquina, opciones)
       abiertas[#abiertas + 1] = { nombre = nombre, maquina = maquina, opciones = opciones }
     end,
+    listo_para_salir = function(self) return self.resultado ~= false end,
   }
 end
 
 local function entrar(dinero)
   casino:leave()
-  progreso = Progress.new({ values = { casino_games_today = 4, casino_wins = 0 } })
+  progreso = Progress.new({ values = { casino_games_today = 0, casino_wins = 0 } })
   contexto = {
     economy = Economy.new(dinero),
     progress = progreso,
@@ -161,6 +163,19 @@ end
 assert(casino.jornada.jugadas == 3, "cada apuesta de la mesa cuenta como jugada")
 assert(progreso:get_value("casino_games_today") == 3, "las jugadas se guardan en el progreso")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.76), "con 3 jugadas camina al 76 %")
+assert(not opciones.puede_jugar(), "la primera tanda termina a las 3 jugadas")
+opciones.al_jugar(1)
+assert(casino.jornada.jugadas == 3, "no permite sobrepasar el limite sin aceptar")
+casino:update(0)
+assert(casino.dialogo and casino.sub_estado.current, "pide levantarse al llegar a tres")
+pulsar("return")
+assert(not casino.sub_estado.current and casino.dialogo, "ofrece otras tres desde el salon")
+assert(contexto.time_of_day == 0, "tres juegos no cambian la hora")
+pulsar("return")
+assert(contexto.time_of_day == 2 and casino.jornada.maximo == 6, "aceptar activa noche y seis juegos")
+junto_a("ruleta")
+pulsar("z")
+opciones = mesa().opciones
 for _ = 1, 3 do
   opciones.al_jugar(1)
 end
@@ -171,7 +186,8 @@ pulsadas.right = true
 casino:update(0.1)
 pulsadas.right = nil
 assert(casino.jugador.x == x and casino.jugador.y == y, "sentado en la mesa no camina")
-levantarse()
+pulsar("return")
+junto_a("ruleta")
 pulsar("z")
 assert(casino.sub_estado.current == nil, "a las 6 jugadas no abre la mesa")
 assert(mensaje() == "Ya no quedan jugadas por hoy.", "a las 6 jugadas las mesas se cierran")
@@ -184,8 +200,28 @@ pulsar("z", "z")
 assert(casino.jornada.jugadas == 0 and progreso:get_value("casino_games_today") == 0, "un rechazo no cuenta como jugada")
 
 entrar(30)
-assert(casino.jornada.jugadas == 0 and progreso:get_value("casino_games_today") == 0, "cada entrada al casino empieza un dia nuevo")
+assert(casino.jornada.jugadas == 0 and progreso:get_value("casino_games_today") == 0, "una partida nueva empieza sin jugadas")
 assert(casino.jugador.velocidad == RAPIDEZ, "el dia nuevo empieza sin cansancio")
+
+-- El contador de ruleta sube al apostar; el tercer resultado debe pagarse antes
+-- de mostrar el aviso y congelar la mesa.
+junto_a("ruleta")
+pulsar("z")
+casino.sub_estado.current.resultado = false
+for _ = 1, 3 do mesa().opciones.al_jugar(1) end
+casino:update(0)
+assert(casino.dialogo == nil and casino.sub_estado.current, "espera a que termine el tercer juego")
+casino.sub_estado.current.resultado = true
+casino:update(0)
+assert(casino.dialogo and casino.sub_estado.current, "muestra el aviso al terminar el resultado")
+local table_keys = 0
+casino.sub_estado.current.keypressed = function() table_keys = table_keys + 1 end
+pulsar("escape")
+assert(table_keys == 0 and casino.dialogo, "el aviso bloquea las entradas de la mesa")
+pulsar("return")
+assert(not casino.sub_estado.current and casino.dialogo, "la eleccion se muestra sobre el salon")
+pulsar("down", "return")
+assert(casino:puede_salir() and contexto.time_of_day == 0, "rechazar permite salir sin activar noche")
 
 local function historial()
   return table.concat(casino.historial, ", ")
@@ -205,6 +241,7 @@ pulsar("z", "z")
 assert(historial() == "entrar, rechazo poker", "anota el rechazo: " .. historial())
 
 local function salir_por_la_puerta()
+  casino.en_puerta = false
   casino.jugador.x, casino.jugador.y = 1925, 810
   casino:update(0)
   pulsar("return")
@@ -221,19 +258,37 @@ local function jugar_veces(n)
 end
 
 entrar(30)
-assert(salir_por_la_puerta() == 1, "sin jugar sale de tarde")
+local cambios_antes = #cambios
+assert(salir_por_la_puerta() == 0 and #cambios == cambios_antes, "sin jugar no puede salir ni cambia la hora")
+jugar_veces(2)
+assert(salir_por_la_puerta() == 0 and #cambios == cambios_antes, "con dos juegos tampoco puede salir")
+jugar_veces(1)
+casino:update(0)
+pulsar("down", "return")
+assert(casino.decision_tomada and casino.jornada.maximo == 3, "rechazar termina la primera tanda")
+assert(salir_por_la_puerta() == 0, "rechazar permite salir de dia")
 assert(cambios[#cambios] == "transicion", "y pasa a la transicion")
 assert(casino.historial[#casino.historial] == "salir", "anota la salida")
 
 entrar(30)
-jugar_veces(5)
-assert(salir_por_la_puerta() == 1, "con 5 jugadas sale de tarde")
-
-entrar(30)
-jugar_veces(6)
+jugar_veces(3)
+casino:update(0)
+pulsar("return")
+assert(contexto.time_of_day == 2, "aceptar la segunda tanda activa noche")
+cambios_antes = #cambios
+salir_por_la_puerta()
+assert(#cambios == cambios_antes, "aceptar obliga a completar seis")
+jugar_veces(2)
+salir_por_la_puerta()
+assert(#cambios == cambios_antes, "con cinco no puede salir")
+jugar_veces(1)
+casino:update(0)
 assert(salir_por_la_puerta() == 2, "con 6 jugadas sale de noche")
 
 entrar(30)
+jugar_veces(3)
+casino:update(0)
+pulsar("down", "return")
 casino.jugador.x, casino.jugador.y = 1925, 810
 casino:update(0)
 pulsar("down", "return")
@@ -258,10 +313,60 @@ local function en_pantalla(...)
 end
 
 entrar(30)
-assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 6"), "al entrar se ve el dinero y las jugadas")
+assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 3"), "al entrar se ve el dinero y las jugadas")
 jugar_veces(1)
 contexto.economy:spend_money(2)
-assert(en_pantalla("Dinero: 28 M", "Jugadas: 1 de 6"), "muestra el dinero y las jugadas del dia")
+assert(en_pantalla("Dinero: 28 M", "Jugadas: 1 de 3"), "muestra el dinero y las jugadas del dia")
+
+local function reentrar()
+  casino:leave()
+  casino:enter(contexto)
+  abiertas = {}
+  casino.sub_estado.states = {
+    ruleta = mesa_de_prueba("ruleta"),
+    blackjack = mesa_de_prueba("blackjack"),
+    poker = mesa_de_prueba("poker"),
+  }
+end
+
+reentrar()
+assert(casino.jornada.jugadas == 1 and progreso:get_value("casino_games_today") == 1,
+  "volver al casino conserva el contador")
+assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.92), "volver conserva el cansancio")
+jugar_veces(2)
+reentrar()
+casino:update(0)
+assert(casino.dialogo and not casino.decision_tomada, "recupera una decision pendiente al volver")
+pulsar("down", "return")
+assert(progreso:get_flag("casino_decision_made") and not progreso:get_flag("casino_extra_games_accepted"))
+salir_por_la_puerta()
+reentrar()
+assert(casino.jornada.jugadas == 3 and casino.jornada.maximo == 3 and casino:puede_salir(),
+  "rechazar y volver no reinicia la tanda ni la decision")
+junto_a("ruleta")
+pulsar("z")
+assert(not casino.sub_estado.current and mensaje() == "Ya no quedan jugadas por hoy.",
+  "no puede reabrir mesas tras terminar a las tres")
+
+entrar(30)
+jugar_veces(3)
+casino:update(0)
+pulsar("return")
+jugar_veces(2)
+reentrar()
+assert(casino.jornada.jugadas == 5 and casino.jornada.maximo == 6 and casino.decision_tomada,
+  "conserva la segunda tanda y sus cinco juegos")
+assert(not casino:puede_salir() and contexto.time_of_day == 2, "mantiene el compromiso y la noche")
+assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.60), "conserva el cansancio de cinco juegos")
+jugar_veces(1)
+casino:update(0)
+salir_por_la_puerta()
+reentrar()
+assert(casino.jornada.jugadas == 6 and casino.jornada.maximo == 6 and casino:puede_salir(),
+  "salir y volver tras seis juegos no concede juegos nuevos")
+junto_a("poker")
+pulsar("z")
+assert(not casino.sub_estado.current, "poker sigue cerrado despues de volver")
 
 love = love_real
 print("test_casino: ok")

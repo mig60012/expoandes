@@ -428,6 +428,16 @@ function Poker:registrar_jugada_si_termino()
   end
 end
 
+function Poker:listo_para_salir()
+  return self.session_finished and not self.collecting_chips
+end
+
+function Poker:salir()
+  if not self.jugada_registrada or not self:listo_para_salir() then return false end
+  self.machine:switch(nil)
+  return true
+end
+
 function Poker:preparar_turno_bot()
   local player = self.game:get_current_player()
   if self.input_lock > 0 or self.bot_wait or self.game.status ~= "betting" then
@@ -530,7 +540,7 @@ function Poker:actualizar_botones()
     }
   elseif self.game.status == "showdown" and not self.collecting_chips and self.session_finished then
     definiciones = {
-      { label = "LEAVE", action = function() self.machine:switch(nil) end, color = { 0.30, 0.12, 0.14 } },
+      { label = "LEAVE", action = function() self:salir() end, color = { 0.30, 0.12, 0.14 } },
     }
   end
 
@@ -584,7 +594,7 @@ end
 
 function Poker:keypressed(key)
   if key == "escape" then
-    self.machine:switch(nil)
+    self:salir()
   end
 end
 
@@ -933,6 +943,11 @@ function Poker:draw()
   love.graphics.setBlendMode("alpha")
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.draw(self.current, 0, 0)
+  love.graphics.setFont(self.fuente_ui)
+  love.graphics.setColor(1, 1, 1, 1)
+  local aviso = self.jugada_registrada and "Esc: volver al casino"
+    or "Completa un juego de 3 manos antes de salir"
+  love.graphics.printf(aviso, 0, 12, width, "center")
   love.graphics.pop()
 end
 

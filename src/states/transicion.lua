@@ -10,11 +10,16 @@ local filtro_overlay = love.graphics.newImage("assets/transicion/Filtro_overlay.
 local player_pos = 0
 local DialogueView = require("src/states/transicion/dialogue")
 local light_flickering = false
+-- Coordenadas sobre la imagen original; comparten la transformacion de la camara.
+local doors = {
+  { x = 24, y = 388, w = 184, h = 342, state = "casa", label = "Entrar a casa" },
+  { x = 8530, y = 298, w = 470, h = 427, state = "casino", label = "Entrar al casino" },
+}
 local function get_scene_layout(bg, w, h)
   local sw, sh = bg:getDimensions()
   local scale = h / sh
-  local min_x = sw * scale - w
-  local x = math.min(0, math.max(-min_x, -player_pos + w / 3))
+  local min_x = math.max(0, sw * scale - w)
+  local x = math.min(0, math.max(-min_x, -player_pos * scale + w / 3))
   return x, scale
 end
 
@@ -22,15 +27,38 @@ local function draw_scene(bg, w, h)
   local x, scale = get_scene_layout(bg, w, h)
   love.graphics.draw(bg, x, 0, 0, scale, scale)
 
-  local bw = bg:getWidth()
   local ph = player:getHeight()
-  if player_pos > w / 3 and player_pos < bw * scale - 2 * w / 3 then
-    love.graphics.draw(player, w / 3, 655, 0, (h / ph) / 6)
-  elseif player_pos < w / 3 then
-    love.graphics.draw(player, player_pos, 655, 0, (h / ph) / 6)
-  else
-    love.graphics.draw(player, player_pos - bw * scale + w, 655, 0, (h / ph) / 6)
+  love.graphics.draw(player, x + player_pos * scale, h * 0.73, 0, (h / ph) / 6)
+end
+
+local function door_label_rect(door, x, scale, w)
+  local left, right = x + door.x * scale, x + (door.x + door.w) * scale
+  if right < 0 or left > w then return nil end
+  return math.max(8, math.min(w - 180, left)), (door.y + door.h) * scale + 8, 172, 32
+end
+
+function transicion:door_at(px, py)
+  if self.dialogue:is_active() then return nil end
+  local w, h = love.graphics.getDimensions()
+  if px < 0 or px > w or py < 0 or py > h then return nil end
+  local x, scale = get_scene_layout(manana_bg, w, h)
+  local sx, sy = (px - x) / scale, py / scale
+  for _, door in ipairs(doors) do
+    local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
+    if sx >= door.x and sx <= door.x + door.w
+        and sy >= door.y and sy <= door.y + door.h then
+      return door
+    end
+    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh then
+      return door
+    end
   end
+end
+
+function transicion:mousepressed(x, y, button)
+  if button ~= 1 then return end
+  local door = self:door_at(x, y)
+  if door then self.context.state_machine:switch(door.state) end
 end
 
 local function create_shader()
@@ -167,6 +195,11 @@ end
 
 function transicion:enter(context)
   self.context = context
+  if context.state_machine.last == "casa" then
+    player_pos = doors[1].x
+  elseif context.state_machine.last == "casino" then
+    player_pos = doors[2].x
+  end
   self.dialogue = DialogueView.new(context, "dialogo.lua")
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
@@ -183,7 +216,12 @@ function transicion:update(dt)
   if love.keyboard.isDown("d") then
     dir = dir + (h / 4) * dt
   end
-  player_pos = player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)
+  local scale = h / manana_bg:getHeight()
+  local player_width = player:getWidth() * (h / player:getHeight()) / 6 / scale
+  if not self.dialogue:is_active() then
+    player_pos = math.max(0, math.min(manana_bg:getWidth() - player_width,
+      player_pos + dir / scale * (love.keyboard.isDown("h") and 20 or 1)))
+  end
   if not light_flickering then
     if love.math.random() > 0.99 then
       light_flickering = true
@@ -197,7 +235,8 @@ end
 
 function transicion:keypressed(key)
   self.dialogue:keypressed(key)
-  if key == "c" then    self.context.state_machine:switch("casino")
+  if key == "c" and not self.dialogue:is_active() then
+    self.context.state_machine:switch("casino")
   end
 end
 
@@ -242,6 +281,26 @@ function transicion:draw()
   love.graphics.setShader()
   love.graphics.setBlendMode("alpha")
   love.graphics.pop()
+  if not self.dialogue:is_active() then
+    local hovered = self:door_at(love.mouse.getPosition())
+    love.graphics.push("all")
+    for _, door in ipairs(doors) do
+      local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
+      if lx then
+        if door == hovered then
+          love.graphics.setColor(1, 1, 0.3, 1)
+          love.graphics.setLineWidth(2)
+          love.graphics.rectangle("line", x + door.x * scale, door.y * scale,
+            door.w * scale, door.h * scale)
+        end
+        love.graphics.setColor(0, 0, 0, 0.85)
+        love.graphics.rectangle("fill", lx, ly, lw, lh, 4, 4)
+        love.graphics.setColor(1, 1, door == hovered and 0.3 or 1, 1)
+        love.graphics.printf(door.label, lx, ly + 8, lw, "center")
+      end
+    end
+    love.graphics.pop()
+  end
   self.dialogue:draw()
 end
 
