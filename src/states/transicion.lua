@@ -70,9 +70,60 @@ local BACK_ONCE_DURATION = FRAME_DURATION * #walk_animations.back.frames
 local DialogueView = require("src/states/transicion/dialogue")
 local Audio = require("src/systems/audio")
 local light_flickering = false
+local footstep_source
+local ambience_source
+
+local function stop_footsteps()
+  if footstep_source then
+    Audio.detener(footstep_source)
+    footstep_source = nil
+  end
+end
+
+local function stop_ambience()
+  if ambience_source then
+    Audio.detener(ambience_source)
+    ambience_source = nil
+  end
+end
+
+local function update_footsteps(is_walking)
+  if is_walking and not footstep_source then
+    footstep_source = Audio.reproducir("footsteps", { bucle = true })
+  elseif not is_walking then
+    stop_footsteps()
+  end
+end
+
+local function set_player_animation(animation_name)
+  if player_animation ~= animation_name then
+    player_animation = animation_name
+    player_frame, player_frame_time = 1, 0
+  end
+end
+
+local function set_idle_pose()
+  local direction = last_walk_direction
+  if direction then
+    local animation = walk_animations[direction < 0 and "left" or "right"]
+    set_player_animation(direction < 0 and "left" or "right")
+    player_frame = animation.idle_frame
+  elseif exit_walk_direction then
+    local direction = exit_walk_direction
+    local animation = walk_animations[direction < 0 and "left" or "right"]
+    set_player_animation(direction < 0 and "left" or "right")
+    player_frame = animation.idle_frame
+  else
+    set_player_animation("front")
+    player_frame = 1
+  end
+  player_frame_time = 0
+end
+
+-- Coordenadas sobre la imagen original; comparten la transformacion de la camara.
 local doors = {
-  { x = 24, y = 388, w = 184, h = 342, state = "casa", label = "Entrar a casa" },
-  { x = 8530, y = 298, w = 470, h = 427, state = "casino", label = "Entrar al casino" },
+  { x = 24, y = 388, w = 184, h = 342, spawn_ratio = 0.5, state = "casa", label = "Entrar a casa" },
+  { x = 8530, y = 298, w = 470, h = 427, spawn_ratio = 0.75, state = "casino", label = "Entrar al casino" },
 }
 local function get_scene_layout(bg, w, h)
   local sw, sh = bg:getDimensions()
@@ -97,14 +148,52 @@ local function draw_scene(bg, w, h)
   local x, scale = get_scene_layout(bg, w, h)
   love.graphics.draw(bg, x, 0, 0, scale, scale)
 
-  local ph = player:getHeight()
-  love.graphics.draw(player, x + player_pos * scale, h * 0.73, 0, (h / ph) / 6)
+  local animation = walk_animations[player_animation]
+  local frame = animation.frames[math.min(player_frame, #animation.frames)]
+  local player_scale = h * PLAYER_HEIGHT_RATIO * PLAYER_REFERENCE_HEIGHT
+    / (animation.source_height * frame.height)
+  local center_x = x + player_pos * scale
+  local floor_y = h * PLAYER_FLOOR_RATIO
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.draw(animation.image, frame.quad,
+    center_x - frame.width * player_scale / 2, floor_y - frame.height * player_scale,
+    0, player_scale, player_scale)
 end
 
 local function door_label_rect(door, x, scale, w)
   local left, right = x + door.x * scale, x + (door.x + door.w) * scale
   if right < 0 or left > w then return nil end
-  return math.max(8, math.min(w - 180, left)), (door.y + door.h) * scale + 8, 172, 32
+  return math.max(8, math.min(w - 180, left)), math.max(8, door.y * scale - 40), 172, 32
+end
+
+function transicion:door_at(px, py)
+  if self.dialogue:is_active() or enter_destination then return nil end
+  local w, h = love.graphics.getDimensions()
+  if px < 0 or px > w or py < 0 or py > h then return nil end
+  local x, scale = get_scene_layout(manana_bg, w, h)
+  local sx, sy = (px - x) / scale, py / scale
+  for _, door in ipairs(doors) do
+    local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
+    local player_can_enter = door.state ~= "casino" or player_inside_door(door, h)
+    if sx >= door.x and sx <= door.x + door.w
+        and sy >= door.y and sy <= door.y + door.h and player_can_enter then
+      return door
+    end
+    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh
+        and player_can_enter then
+      return door
+    end
+  end
+end
+
+function transicion:mousepressed(x, y, button)
+  if button ~= 1 then return end
+  local door = self:door_at(x, y)
+  if door then
+    stop_footsteps()
+    enter_destination, enter_walk_time = door.state, BACK_ONCE_DURATION
+    set_player_animation("back")
+  end
 end
 
 local function create_shader()
@@ -239,28 +328,27 @@ local function apply_add_filter(state, image, x, scale)
   state.current = dst
 end
 
-function transicion:enter(context, from_casa)
+function transicion:enter(context)
+  stop_footsteps()
+  stop_ambience()
+  ambience_source = Audio.reproducir("transition_ambience", { bucle = true })
   self.context = context
-  self.transition_error = nil
-  if from_casa then
-    player_pos = 100
-  elseif context.state_machine.last == "casa" then
-    player_pos = doors[1].x
-  else
-    player_pos = 8550
+  if context.state_machine.last == "casa" then
+    player_pos = doors[1].x + doors[1].w * doors[1].spawn_ratio
+  elseif context.state_machine.last == "casino" then
+    player_pos = doors[2].x + doors[2].w * doors[2].spawn_ratio
   end
-  local filename = "dialogo.lua"
-  if from_casa and context.progress then
-    local day = context.progress:get_value("current_day")
-    if day == 2 then
-      filename = "day_2_transition.lua"
-    elseif day == 3 then
-      filename = "day_3_transition.lua"
-    elseif day == 4 then
-      filename = "day_4_transition.lua"
-    end
-  end
-  self.dialogue = DialogueView.new(context, filename)
+  local _, height = love.graphics.getDimensions()
+  local scene_scale = height / manana_bg:getHeight()
+  local half_player = player_half_width(height, scene_scale)
+  player_pos = math.max(half_player, math.min(manana_bg:getWidth() - half_player, player_pos))
+  player_animation, player_frame, player_frame_time = "front", 1, 0
+  last_walk_direction, turn_time = nil, 0
+  exit_walk_direction = context.state_machine.last == "casa" and 1
+    or context.state_machine.last == "casino" and -1
+  intro_walk_time = FRONT_ONCE_DURATION
+  enter_destination, enter_walk_time = nil, 0
+  self.dialogue = DialogueView.new(context, "dialogo.lua")
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
@@ -357,66 +445,17 @@ function transicion:update(dt)
       light_flickering = false
     end
   end
-  if player_pos < 60 then
-    local day_flow = self.context.day_flow
-    if day_flow and day_flow:is_active() then
-      local games = self.context.progress:get_value("casino_games_today")
-      local finished, error_message
-      if games == 0 then
-        -- La primera entrada al juego también llega desde esta transición,
-        -- pero todavía no representa el regreso de una jornada.
-        finished = true
-      elseif games == 3 then
-        -- La decisión entre trabajar y quedarse con la familia se presenta
-        -- al llegar a casa.
-        finished = true
-      elseif games == 6 then
-        -- El regreso nocturno se resuelve en casa para los días 4 y 5.
-        finished = true
-      else
-        finished = false
-        error_message = "La jornada requiere 3 o 6 partidas antes de volver a casa."
-      end
-
-      if not finished then
-        self.transition_error = error_message
-        return
-      end
-    end
-    self.context.state_machine:switch("casa")
-  elseif player_pos > 8600 then
-    self.context.state_machine:switch("casino")
-  end
 end
 
 function transicion:keypressed(key)
   self.dialogue:keypressed(key)
-  if key == "c" and not self.dialogue:is_active() then
-    self.context.state_machine:switch("casino")
+  local _, height = love.graphics.getDimensions()
+  if key == "c" and not self.dialogue:is_active() and not enter_destination
+      and player_inside_door(doors[2], height) then
+    stop_footsteps()
+    enter_destination, enter_walk_time = "casino", BACK_ONCE_DURATION
+    set_player_animation("back")
   end
-end
-
-function transicion:door_at(px, py)
-  if self.dialogue:is_active() then return nil end
-  local w, h = love.graphics.getDimensions()
-  local x, scale = get_scene_layout(manana_bg, w, h)
-  local sx, sy = (px - x) / scale, py / scale
-  for _, door in ipairs(doors) do
-    local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
-    if sx >= door.x and sx <= door.x + door.w
-        and sy >= door.y and sy <= door.y + door.h then
-      return door
-    end
-    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh then
-      return door
-    end
-  end
-end
-
-function transicion:mousepressed(x, y, button)
-  if button ~= 1 then return end
-  local door = self:door_at(x, y)
-  if door then self.context.state_machine:switch(door.state) end
 end
 
 function transicion:draw()
@@ -481,11 +520,6 @@ function transicion:draw()
     love.graphics.pop()
   end
   self.dialogue:draw()
-  if self.transition_error then
-    love.graphics.setColor(1, 0.35, 0.35, 1)
-    love.graphics.print(self.transition_error, 20, h - 30)
-    love.graphics.setColor(1, 1, 1, 1)
-  end
 end
 
 return transicion
