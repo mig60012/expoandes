@@ -1,5 +1,52 @@
 local transicion = {}
-local player = love.graphics.newImage("assets/ugandan_knuckles.png")
+local SPRITE_FOLDER = "assets/transicion/sprites personaje transicion/"
+local function load_walk_animation(filename, frame_bounds)
+  local image = love.graphics.newImage(SPRITE_FOLDER .. filename)
+  local image_width, image_height = image:getDimensions()
+  local frames = {}
+  for index, bounds in ipairs(frame_bounds) do
+    local x, y, width, height = bounds[1], bounds[2], bounds[3], bounds[4]
+    frames[index] = {
+      quad = love.graphics.newQuad(x, y, width, height, image_width, image_height),
+      width = width,
+      height = height,
+      aspect = width / height,
+    }
+  end
+  return {
+    image = image,
+    frames = frames,
+    source_height = image_height,
+  }
+end
+
+-- Cada cuadro recorta la silueta para que no aparezcan partes de poses vecinas.
+local walk_animations = {
+  front = load_walk_animation("caminando_frente.png", {
+    { 85, 3, 246, 748 }, { 520, 4, 256, 749 },
+  }),
+  back = load_walk_animation("caminando_atras.png", {
+    { 91, 9, 245, 748 }, { 516, 8, 242, 752 },
+  }),
+  left = load_walk_animation("caminando_izquierda.png", {
+    { 6, 150, 262, 509 }, { 284, 150, 159, 509 }, { 483, 149, 207, 510 },
+    { 720, 150, 219, 511 }, { 948, 150, 228, 509 }, { 1206, 150, 158, 511 },
+  }),
+  right = load_walk_animation("caminando_derecha.png", {
+    { 26, 153, 152, 473 }, { 238, 154, 184, 471 }, { 439, 155, 213, 471 },
+    { 651, 155, 277, 471 }, { 957, 156, 133, 470 }, { 1129, 155, 236, 471 },
+  }),
+}
+local PLAYER_REFERENCE_HEIGHT = 0
+local PLAYER_MAX_FRAME_ASPECT = 0
+for _, direction in ipairs({ "left", "right" }) do
+  for _, frame in ipairs(walk_animations[direction].frames) do
+    PLAYER_REFERENCE_HEIGHT = math.max(PLAYER_REFERENCE_HEIGHT, frame.height)
+    PLAYER_MAX_FRAME_ASPECT = math.max(PLAYER_MAX_FRAME_ASPECT, frame.aspect)
+  end
+end
+walk_animations.left.idle_frame = #walk_animations.left.frames
+walk_animations.right.idle_frame = 1
 local filtro_add_tarde = love.graphics.newImage("assets/transicion/Filtro_add(tarde).PNG")
 local filtro_add_siempre = love.graphics.newImage("assets/transicion/filtro_add_siempre.PNG")
 local filtro_color_burn = love.graphics.newImage("assets/transicion/Filtro_color_burn.PNG")
@@ -8,12 +55,75 @@ local manana_bg = love.graphics.newImage("assets/transicion/manana_tarde.PNG")
 local noche_bg = love.graphics.newImage("assets/transicion/noche.PNG")
 local filtro_overlay = love.graphics.newImage("assets/transicion/Filtro_overlay.PNG")
 local player_pos = 0
+local player_animation = "front"
+local player_frame, player_frame_time = 1, 0
+local intro_walk_time = 0
+local last_walk_direction, turn_time = nil, 0
+local exit_walk_direction = nil
+local enter_destination, enter_walk_time = nil, 0
+local FRAME_DURATION = 0.12
+local PLAYER_HEIGHT_RATIO = 0.504
+local PLAYER_FLOOR_RATIO = 0.80
+local TURN_DURATION = FRAME_DURATION * 2
+local FRONT_ONCE_DURATION = FRAME_DURATION * #walk_animations.front.frames
+local BACK_ONCE_DURATION = FRAME_DURATION * #walk_animations.back.frames
 local DialogueView = require("src/states/transicion/dialogue")
+local Audio = require("src/systems/audio")
 local light_flickering = false
+local footstep_source
+local ambience_source
+
+local function stop_footsteps()
+  if footstep_source then
+    Audio.detener(footstep_source)
+    footstep_source = nil
+  end
+end
+
+local function stop_ambience()
+  if ambience_source then
+    Audio.detener(ambience_source)
+    ambience_source = nil
+  end
+end
+
+local function update_footsteps(is_walking)
+  if is_walking and not footstep_source then
+    footstep_source = Audio.reproducir("footsteps", { bucle = true })
+  elseif not is_walking then
+    stop_footsteps()
+  end
+end
+
+local function set_player_animation(animation_name)
+  if player_animation ~= animation_name then
+    player_animation = animation_name
+    player_frame, player_frame_time = 1, 0
+  end
+end
+
+local function set_idle_pose()
+  local direction = last_walk_direction
+  if direction then
+    local animation = walk_animations[direction < 0 and "left" or "right"]
+    set_player_animation(direction < 0 and "left" or "right")
+    player_frame = animation.idle_frame
+  elseif exit_walk_direction then
+    local direction = exit_walk_direction
+    local animation = walk_animations[direction < 0 and "left" or "right"]
+    set_player_animation(direction < 0 and "left" or "right")
+    player_frame = animation.idle_frame
+  else
+    set_player_animation("front")
+    player_frame = 1
+  end
+  player_frame_time = 0
+end
+
 -- Coordenadas sobre la imagen original; comparten la transformacion de la camara.
 local doors = {
-  { x = 24, y = 388, w = 184, h = 342, state = "casa", label = "Entrar a casa" },
-  { x = 8530, y = 298, w = 470, h = 427, state = "casino", label = "Entrar al casino" },
+  { x = 24, y = 388, w = 184, h = 342, spawn_ratio = 0.5, state = "casa", label = "Entrar a casa" },
+  { x = 8530, y = 298, w = 470, h = 427, spawn_ratio = 0.75, state = "casino", label = "Entrar al casino" },
 }
 local function get_scene_layout(bg, w, h)
   local sw, sh = bg:getDimensions()
@@ -23,33 +133,54 @@ local function get_scene_layout(bg, w, h)
   return x, scale
 end
 
+local function player_half_width(height, scene_scale)
+  return height * PLAYER_HEIGHT_RATIO * PLAYER_REFERENCE_HEIGHT
+    * PLAYER_MAX_FRAME_ASPECT / (walk_animations.left.source_height * scene_scale * 2)
+end
+
+local function player_inside_door(door, height)
+  local scene_scale = height / manana_bg:getHeight()
+  local margin = player_half_width(height, scene_scale)
+  return player_pos >= door.x + margin and player_pos <= door.x + door.w - margin
+end
+
 local function draw_scene(bg, w, h)
   local x, scale = get_scene_layout(bg, w, h)
   love.graphics.draw(bg, x, 0, 0, scale, scale)
 
-  local ph = player:getHeight()
-  love.graphics.draw(player, x + player_pos * scale, h * 0.73, 0, (h / ph) / 6)
+  local animation = walk_animations[player_animation]
+  local frame = animation.frames[math.min(player_frame, #animation.frames)]
+  local player_scale = h * PLAYER_HEIGHT_RATIO * PLAYER_REFERENCE_HEIGHT
+    / (animation.source_height * frame.height)
+  local center_x = x + player_pos * scale
+  local floor_y = h * PLAYER_FLOOR_RATIO
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.draw(animation.image, frame.quad,
+    center_x - frame.width * player_scale / 2, floor_y - frame.height * player_scale,
+    0, player_scale, player_scale)
 end
 
 local function door_label_rect(door, x, scale, w)
   local left, right = x + door.x * scale, x + (door.x + door.w) * scale
   if right < 0 or left > w then return nil end
-  return math.max(8, math.min(w - 180, left)), (door.y + door.h) * scale + 8, 172, 32
+  return math.max(8, math.min(w - 180, left)), math.max(8, door.y * scale - 40), 172, 32
 end
 
 function transicion:door_at(px, py)
-  if self.dialogue:is_active() then return nil end
+  if self.dialogue:is_active() or enter_destination then return nil end
   local w, h = love.graphics.getDimensions()
   if px < 0 or px > w or py < 0 or py > h then return nil end
   local x, scale = get_scene_layout(manana_bg, w, h)
   local sx, sy = (px - x) / scale, py / scale
   for _, door in ipairs(doors) do
     local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
+    local player_can_enter = door.state ~= "casino" or player_inside_door(door, h)
     if sx >= door.x and sx <= door.x + door.w
-        and sy >= door.y and sy <= door.y + door.h then
+        and sy >= door.y and sy <= door.y + door.h and player_can_enter then
       return door
     end
-    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh then
+    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh
+        and player_can_enter then
       return door
     end
   end
@@ -58,7 +189,11 @@ end
 function transicion:mousepressed(x, y, button)
   if button ~= 1 then return end
   local door = self:door_at(x, y)
-  if door then self.context.state_machine:switch(door.state) end
+  if door then
+    stop_footsteps()
+    enter_destination, enter_walk_time = door.state, BACK_ONCE_DURATION
+    set_player_animation("back")
+  end
 end
 
 local function create_shader()
@@ -194,33 +329,112 @@ local function apply_add_filter(state, image, x, scale)
 end
 
 function transicion:enter(context)
+  stop_footsteps()
+  stop_ambience()
+  ambience_source = Audio.reproducir("transition_ambience", { bucle = true })
   self.context = context
   if context.state_machine.last == "casa" then
-    player_pos = doors[1].x
+    player_pos = doors[1].x + doors[1].w * doors[1].spawn_ratio
   elseif context.state_machine.last == "casino" then
-    player_pos = doors[2].x
+    player_pos = doors[2].x + doors[2].w * doors[2].spawn_ratio
   end
+  local _, height = love.graphics.getDimensions()
+  local scene_scale = height / manana_bg:getHeight()
+  local half_player = player_half_width(height, scene_scale)
+  player_pos = math.max(half_player, math.min(manana_bg:getWidth() - half_player, player_pos))
+  player_animation, player_frame, player_frame_time = "front", 1, 0
+  last_walk_direction, turn_time = nil, 0
+  exit_walk_direction = context.state_machine.last == "casa" and 1
+    or context.state_machine.last == "casino" and -1
+  intro_walk_time = FRONT_ONCE_DURATION
+  enter_destination, enter_walk_time = nil, 0
   self.dialogue = DialogueView.new(context, "dialogo.lua")
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
 end
 
+function transicion:leave()
+  stop_footsteps()
+  stop_ambience()
+end
+
 function transicion:update(dt)
   self.dialogue:update(dt)
   local dir = 0
+  local is_walking = false
+  local is_turning = false
   local _, h = love.graphics.getDimensions()
-  if love.keyboard.isDown("a") then
-    dir = dir - (h / 4) * dt
-  end
-  if love.keyboard.isDown("d") then
-    dir = dir + (h / 4) * dt
-  end
+  if love.keyboard.isDown("a") then dir = dir - 1 end
+  if love.keyboard.isDown("d") then dir = dir + 1 end
+  if intro_walk_time > 0 and not enter_destination then dir = 0 end
   local scale = h / manana_bg:getHeight()
-  local player_width = player:getWidth() * (h / player:getHeight()) / 6 / scale
-  if not self.dialogue:is_active() then
-    player_pos = math.max(0, math.min(manana_bg:getWidth() - player_width,
-      player_pos + dir / scale * (love.keyboard.isDown("h") and 20 or 1)))
+  local half_player = player_half_width(h, scale)
+  local previous_player_pos = player_pos
+  if enter_destination then
+    enter_walk_time = enter_walk_time - dt
+    if enter_walk_time <= 0 then
+      local destination = enter_destination
+      stop_footsteps()
+      enter_destination, enter_walk_time = nil, 0
+      self.context.state_machine:switch(destination)
+      return
+    end
+  elseif not self.dialogue:is_active() then
+    if dir ~= 0 then
+      is_walking = true
+      if last_walk_direction and dir ~= last_walk_direction and turn_time <= 0 then
+        turn_time = TURN_DURATION
+      end
+      last_walk_direction = dir
+      exit_walk_direction = nil
+      intro_walk_time = 0
+      player_pos = math.max(half_player, math.min(manana_bg:getWidth() - half_player,
+        player_pos + dir * (h / 4) * dt / scale * (love.keyboard.isDown("h") and 20 or 1)))
+      is_walking = player_pos ~= previous_player_pos
+    end
+    if turn_time > 0 and dir ~= 0 and is_walking then
+      is_turning = true
+      set_player_animation("front")
+      turn_time = math.max(0, turn_time - dt)
+    elseif turn_time > 0 then
+      turn_time = 0
+      set_idle_pose()
+    elseif dir ~= 0 then
+      set_player_animation(dir < 0 and "left" or "right")
+    elseif intro_walk_time > 0 then
+      intro_walk_time = math.max(0, intro_walk_time - dt)
+      if intro_walk_time > 0 or not exit_walk_direction then
+        set_player_animation("front")
+      else
+        last_walk_direction = exit_walk_direction
+        set_idle_pose()
+      end
+    elseif exit_walk_direction then
+      last_walk_direction = exit_walk_direction
+      set_idle_pose()
+    elseif dir == 0 then
+      set_idle_pose()
+    end
+  end
+  if enter_destination then
+    set_player_animation("back")
+  end
+  update_footsteps(is_walking and not enter_destination)
+  if enter_destination or player_animation == "front" and intro_walk_time > 0
+      or is_walking or is_turning then
+    player_frame_time = player_frame_time + dt
+    local frames = walk_animations[player_animation].frames
+    while player_frame_time >= FRAME_DURATION do
+      player_frame_time = player_frame_time - FRAME_DURATION
+      if enter_destination or player_animation == "front" and intro_walk_time > 0 then
+        player_frame = math.min(player_frame + 1, #frames)
+      else
+        player_frame = player_frame % #frames + 1
+      end
+    end
+  else
+    player_frame_time = 0
   end
   if not light_flickering then
     if love.math.random() > 0.99 then
@@ -235,8 +449,12 @@ end
 
 function transicion:keypressed(key)
   self.dialogue:keypressed(key)
-  if key == "c" and not self.dialogue:is_active() then
-    self.context.state_machine:switch("casino")
+  local _, height = love.graphics.getDimensions()
+  if key == "c" and not self.dialogue:is_active() and not enter_destination
+      and player_inside_door(doors[2], height) then
+    stop_footsteps()
+    enter_destination, enter_walk_time = "casino", BACK_ONCE_DURATION
+    set_player_animation("back")
   end
 end
 

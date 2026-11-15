@@ -21,6 +21,8 @@ local EFECTOS = {
   chip_place = { archivo = "chip_place.ogg", volumen = 0.9, variacion = 0.04 },
   clack      = { archivo = "clack.ogg",      volumen = 0.7, variacion = 0.03, enfriamiento = 0.03 },
   ball_spin  = { archivo = "ball_spin.ogg",  volumen = 0.6 },
+  footsteps  = { archivo = "pasos.mp3",      volumen = 0.55 },
+  transition_ambience = { archivo = "viento_lluvia.mp3", volumen = 0.35 },
 }
 
 local fuentes, ultima_vez = {}, {}
@@ -45,6 +47,7 @@ end
 -- detenerlo despues con Audio.detener.
 -- opciones.tono    : multiplica la velocidad/tono (1 = normal)
 -- opciones.volumen : multiplica el volumen del efecto (1 = normal)
+-- opciones.bucle   : reproduce el sonido en bucle hasta que se detenga
 function Audio.reproducir(nombre, opciones)
   opciones = opciones or {}
   local efecto, base = EFECTOS[nombre], cargar(nombre)
@@ -65,6 +68,9 @@ function Audio.reproducir(nombre, opciones)
     end
     copia:setVolume(efecto.volumen * (opciones.volumen or 1))
     copia:setPitch(tono)
+    if opciones.bucle then
+      copia:setLooping(true)
+    end
     copia:play()
     return copia
   end)
