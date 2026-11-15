@@ -35,10 +35,8 @@ local function solido(nombre, choque, extra)
   return objeto
 end
 
--- Paredes sobre la referencia de 1257 x 706; mesas y puerta calibradas contra
--- el nuevo arte de 736 x 414, sin cambiar la asignacion de los juegos.
+-- Paredes sobre la referencia de 1257 x 706.
 local ESCALA = 1.9
-local ESCALA_ARTE = 2400 / 736
 local function escena(puntos)
   return colocar(puntos, ESCALA, 0, 0)
 end
@@ -51,12 +49,6 @@ local function foto(archivo, x, y, ancho, alto)
     ancho = ancho * ESCALA,
     alto = alto * ESCALA,
   }
-end
-
-local function arte(archivo, x, y, ancho, alto)
-  return { archivo = archivo, ruta = "assets/casino/" .. archivo .. ".png",
-    x = x * ESCALA_ARTE, y = y * ESCALA_ARTE,
-    ancho = ancho * ESCALA_ARTE, alto = alto * ESCALA_ARTE }
 end
 
 local function arco_puerta()
@@ -72,22 +64,28 @@ local function arco_puerta()
 end
 
 local BLACKJACK = {
-  67, -71, 101, -53, 122, -30, 127, -10, 115, 20, 99, 36, 64, 56,
-  30, 66, -14, 71, -67, 65, -94, 64, -109, 54, -128, 27,
+  566, 702, 780, 578, 842, 594, 872, 630, 880, 680, 862, 740, 826, 778,
+  775, 805, 715, 818, 655, 812, 605, 792, 575, 762, 564, 730,
 }
 
 local RULETA = {
-  110, -104, 184, -69, 194, -58, 194, -34, 200, 10, -40, 132, -92, 130,
-  -196, 54, -194, 40, -18, -53, -17, -69, 28, -92, 66, -104,
+  1152, 998, 1455, 836, 1525, 814, 1600, 830, 1645, 872, 1652, 915,
+  1628, 955, 1318, 1100, 1172, 1035,
 }
+
+local SALON = "assets/casino/salon/"
 
 local Plano = {
   ancho = 2400,
   alto = 1350,
   vista = { ancho = 1536, alto = 864 },
-  arte = { ruta = "assets/casino/sala.png" },
+  arte = {
+    ruta = SALON .. "fondo.png",
+    multiplicar = SALON .. "filtro_1_multiply.png",
+    sumar = { SALON .. "filtro_2_add.png", SALON .. "filtro_3_add.png" },
+  },
   estiramiento = 2,
-  jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 84, alto = 150 },
+  jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 84, alto = 205 },
   suelo = escena({ 102, 414, 477, 224, 767, 370, 905, 301, 1151, 423, 628, 686 }),
   -- Las paredes se prolongan hasta el borde del lienzo. La camara muestra el
   -- interior, no el recorte negro que rodeaba la maqueta isometrica.
@@ -97,27 +95,24 @@ local Plano = {
     { color = { 0.54, 0.54, 0.54 }, puntos = escena({ 767, 0, 905, 0, 905, 301, 767, 370 }) },
     { color = { 0.67, 0.67, 0.67 }, puntos = escena({ 905, 0, 1264, 0, 1264, 479, 905, 301 }) },
   },
-  inicio = { x = 574 * ESCALA_ARTE, y = 265 * ESCALA_ARTE },
+  inicio = { x = 1940, y = 805 },
   puerta = {
-    zona = colocar({ 598,221, 637,241, 611,254, 572,234 }, ESCALA_ARTE, 0, 0),
+    zona = { 1925, 740, 1985, 710, 2045, 740, 1985, 770 },
     marco = arco_puerta(),
-    centro = { x = 604 * ESCALA_ARTE, y = 237 * ESCALA_ARTE },
+    centro = { x = 1985, y = 740 },
   },
   objetos = {
-    solido("mesa blackjack", colocar(BLACKJACK, 0.40 * ESCALA_ARTE, 232 * ESCALA_ARTE, 220 * ESCALA_ARTE), {
+    solido("mesa blackjack", BLACKJACK, {
       interaccion = "blackjack", etiqueta = "Blackjack",
       foto = foto("mesa_blackjack", 294, 297, 191, 133),
-      arte = arte("sala_blackjack", 172, 174, 112, 78),
     }),
-    solido("mesa póker", colocar(ovalo(302, 285, 32, 22, 24), ESCALA_ARTE, 0, 0), {
+    solido("mesa póker", ovalo(985, 893, 102, 86, 24), {
       interaccion = "poker", etiqueta = "Póker",
       foto = foto("mesa_poker", 459, 430, 114, 99),
-      arte = arte("sala_poker", 269, 252, 67, 58),
     }),
-    solido("mesa ruleta", colocar(RULETA, 0.36 * ESCALA_ARTE, 421 * ESCALA_ARTE, 313 * ESCALA_ARTE), {
+    solido("mesa ruleta", RULETA, {
       interaccion = "ruleta", etiqueta = "Ruleta",
       foto = foto("mesa_ruleta", 574, 428, 289, 188),
-      arte = arte("sala_ruleta", 336, 251, 169, 110),
     }),
   },
 }
