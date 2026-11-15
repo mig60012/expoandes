@@ -275,15 +275,6 @@ function casino:sentarse(mesa)
 end
 
 function casino:keypressed(tecla, scancode, isrepeat)
-  -- Temporal: disponible tanto en el salon como en las mesas, sin duplicar
-  -- el atajo propio de ruleta ni contar la ayuda como una jugada.
-  if tecla == "f1" then
-    if not isrepeat then
-      self.context.economy:add_money(DINERO_PRUEBA)
-      self:anotar("dinero_prueba", DINERO_PRUEBA)
-    end
-    return
-  end
   self:revisar_limite()
   if self.dialogo then
     self.dialogo:keypressed(tecla)
@@ -294,7 +285,10 @@ function casino:keypressed(tecla, scancode, isrepeat)
     self:revisar_limite()
     return
   end
-  if self.cercano and (tecla == "z" or tecla == "return") then
+  if tecla == "f1" then
+    self.context.economy:add_money(DINERO_PRUEBA)
+    self:anotar("dinero_prueba", DINERO_PRUEBA)
+  elseif self.cercano and (tecla == "z" or tecla == "return") then
     self:sentarse(self.cercano)
   end
 end

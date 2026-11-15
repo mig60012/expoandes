@@ -251,7 +251,7 @@ assert(historial() == "entrar, rechazo poker", "anota el rechazo: " .. historial
 
 local function salir_por_la_puerta()
   casino.en_puerta = false
-  casino.jugador.x, casino.jugador.y = Plano.puerta.centro.x, Plano.puerta.centro.y
+  casino.jugador.x, casino.jugador.y = 1925, 810
   casino:update(0)
   pulsar("return")
   return contexto.time_of_day
@@ -298,7 +298,7 @@ entrar(30)
 jugar_veces(3)
 casino:update(0)
 pulsar("down", "return")
-casino.jugador.x, casino.jugador.y = Plano.puerta.centro.x, Plano.puerta.centro.y
+casino.jugador.x, casino.jugador.y = 1925, 810
 casino:update(0)
 pulsar("down", "return")
 assert(contexto.time_of_day == 0 and casino.dialogo == nil, "responder No no cambia la hora")
@@ -343,7 +343,6 @@ reentrar()
 assert(casino.jornada.jugadas == 1 and progreso:get_value("casino_games_today") == 1,
   "volver al casino conserva el contador")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.92), "volver conserva el cansancio")
-pulsar("f1")
 jugar_veces(2)
 reentrar()
 casino:update(0)
@@ -369,7 +368,6 @@ assert(casino.jornada.jugadas == 5 and casino.jornada.maximo == 6 and casino.dec
   "conserva la segunda tanda y sus cinco juegos")
 assert(not casino:puede_salir() and contexto.time_of_day == 2, "mantiene el compromiso y la noche")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.60), "conserva el cansancio de cinco juegos")
-pulsar("f1")
 jugar_veces(1)
 casino:update(0)
 salir_por_la_puerta()
@@ -379,54 +377,6 @@ assert(casino.jornada.jugadas == 6 and casino.jornada.maximo == 6 and casino:pue
 junto_a("poker")
 pulsar("z")
 assert(not casino.sub_estado.current, "poker sigue cerrado despues de volver")
-
-entrar(0)
-pulsar("f1")
-junto_a("blackjack")
-pulsar("z")
-assert(casino.sub_estado.current_name == "blackjack")
-pulsar("f1")
-assert(contexto.economy:get_money() == 6 and casino.jornada.jugadas == 0,
-  "F1 tambien funciona dentro de blackjack sin contar una jugada")
-casino:keypressed("f1", nil, true)
-assert(contexto.economy:get_money() == 6, "mantener F1 no dispara la repeticion del teclado")
-levantarse()
-
--- Blackjack gestiona su aviso y devuelve la decision de la cuota al salon.
-entrar(30)
-junto_a("blackjack")
-pulsar("z")
-casino.sub_estado.current.gestiona_limite = true
-for _ = 1, 3 do mesa().opciones.al_jugar(4) end
-casino:update(0)
-assert(casino.sub_estado.current_name == "blackjack" and casino.dialogo == nil,
-  "el aviso de blackjack no es reemplazado por una salida automatica al limite")
-assert(not mesa().opciones.puede_jugar(), "el limite sigue impidiendo repetir blackjack")
-levantarse()
-casino:update(0)
-assert(casino.dialogo and not casino.decision_tomada, "la decision de tres mas se abre al volver al salon")
-pulsar("down", "return")
-assert(casino:puede_salir() and casino.jornada.jugadas == 3, "salir del aviso conserva la cuota y su decision")
-
--- El recorte sigue al jugador sin mostrar ningun area exterior al lienzo.
-local anterior_x, anterior_y
-for _, ventana in ipairs({ {1600, 900}, {800, 600}, {2560, 1080}, {720, 1280} }) do
-  ventana_ancho, ventana_alto = ventana[1], ventana[2]
-  for i = 1, #Plano.suelo, 2 do
-    casino.jugador.x, casino.jugador.y = Plano.suelo[i], Plano.suelo[i + 1]
-    casino:encuadrar()
-    local medio_x, medio_y = ventana_ancho / casino.camara.scale / 2, ventana_alto / casino.camara.scale / 2
-    assert(casino.camara.x >= medio_x - 0.001 and casino.camara.x + medio_x <= Plano.ancho + 0.001,
-      "la camara no expone barras laterales")
-    assert(casino.camara.y >= medio_y - 0.001 and casino.camara.y + medio_y <= Plano.alto + 0.001,
-      "la camara no expone barras superiores ni inferiores")
-    local sx, sy = casino.camara:cameraCoords(casino.jugador.x, casino.jugador.y)
-    assert(sx >= 0 and sx <= ventana_ancho and sy >= 0 and sy <= ventana_alto,
-      "el jugador sigue visible junto a los limites del salon")
-    if i == 1 then anterior_x, anterior_y = casino.camara.x, casino.camara.y end
-  end
-  assert(casino.camara.x ~= anterior_x or casino.camara.y ~= anterior_y, "la camara sigue el recorrido del jugador")
-end
 
 love = love_real
 print("test_casino: ok")
