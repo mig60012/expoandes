@@ -4,8 +4,9 @@
 -- pausa=0.65, puede_jugar y al_jugar (callbacks existentes del casino).
 local Audio = require("src/systems/audio")
 local Blackjack = {}
+Blackjack.gestiona_limite = true -- Su aviso de fin ofrece volver al salon.
 local Reglas, Bot, Motor, Vista = {}, {}, {}, {}
-local MAX_PARTIDAS = 4
+local MAX_PARTIDAS = 2 -- Dos manos completas forman una jugada del casino.
 
 function Reglas.valor(c) return math.min(c.rank, 10) end
 function Reglas.total(cartas)
@@ -24,6 +25,17 @@ function Reglas.apuesta(monto, saldo, minimo, incremento)
   return type(monto) == "number" and monto == monto and monto < math.huge
     and monto >= minimo and monto <= saldo and monto % 2 == 0
     and (monto - minimo) % incremento == 0
+end
+function Reglas.fichas(monto)
+  local pilas = {}
+  for _, valor in ipairs({ 10, 5, 2, 1 }) do
+    local cantidad = math.floor(monto / valor)
+    if cantidad > 0 then
+      pilas[#pilas + 1] = { valor = valor, cantidad = cantidad }
+      monto = monto - cantidad * valor
+    end
+  end
+  return pilas
 end
 function Reglas.acciones(jugador, mano, saldo)
   local abierta = mano ~= nil and not mano.cerrada and Reglas.total(mano.cartas) < 21
@@ -152,7 +164,7 @@ function Motor:nueva_ronda()
   for _, j in ipairs(self.jugadores) do j.manos, j.dividio, j.accion, j.ganador = {}, false, nil, false end
   if not self:puede_jugar() then self.mensaje = "Ya no quedan jugadas por hoy. Vuelve al casino."
   elseif self:saldo(self.jugadores[1]) < self.minimo then
-    self.mensaje = "Saldo insuficiente: necesitas " .. self.minimo .. " M. Puedes volver al casino."
+    self.mensaje = "Saldo insuficiente: necesitas " .. self.minimo .. " M. F1 agrega 3 M de prueba."
   end
   return true
 end
@@ -174,6 +186,7 @@ function Motor:confirmar()
     else j.accion = "Sin saldo: no juega" end
   end
   self.fase, self.tiempo, self.ronda = "reparto", 0, self.ronda + 1
+  self.fichas_tiempo = 0
   for _ = 1, 2 do
     for _, j in ipairs(self.jugadores) do
       if j.manos[1] then self.cola[#self.cola + 1] = j.manos[1] end
@@ -263,6 +276,7 @@ function Motor:accion(indice, accion)
     j.manos[2] = mano(m.apuesta, { c }, true)
     self.fase, self.tiempo = "division", 0
     self.cola = { m, j.manos[2] }
+    self.fichas_tiempo = 0
     self.ases_divididos = m.cartas[1].rank == 1
     self:evento("chip_place")
     self.mensaje = "Dividiendo: una carta para cada mano…"
@@ -295,7 +309,7 @@ function Motor:liquidar()
   self.fase, self.turno, self.indice_mano = "resultado", nil, nil
   self.mensaje = "Ronda terminada. Los pagos ya están incluidos en los saldos."
   if self:saldo(self.jugadores[1]) < self.minimo then
-    self.mensaje = "Saldo insuficiente para otra ronda (mínimo " .. self.minimo .. " M). Vuelve al casino."
+    self.mensaje = "Saldo insuficiente para otra mano (mínimo " .. self.minimo .. " M). F1 agrega 3 M."
   elseif not self:puede_jugar() then
     self.mensaje = "Ronda liquidada. Completaste las jugadas disponibles; vuelve al casino."
   end
@@ -303,6 +317,7 @@ function Motor:liquidar()
   return true
 end
 function Motor:update(dt)
+  self.fichas_tiempo = math.min(1, (self.fichas_tiempo or 0) + dt * 4)
   if self.fase == "apuestas" or self.fase == "resultado" then return end
   if self.fase == "turnos" and self.turno == 1 then return end
   self.tiempo = self.tiempo + dt
@@ -359,10 +374,9 @@ function Vista.recursos()
   r.dorso = g.newQuad(0, 160, 56, 80, r.atlas)
   return r
 end
-function Vista.botones(m)
-  local libre = m.fase == "apuestas" or m.fase == "resultado"
-  local botones = { { id = "salir", texto = "Esc · Volver al casino", x = 1010, y = 26, w = 244, h = 48,
-    color = { 0.28, 0.10, 0.13 }, activo = libre } }
+function Vista.botones(m, puede_salir)
+  local botones = { { id = "salir", texto = puede_salir and "Esc · Volver al casino" or "Salida: completa 2 manos", x = 1010, y = 26, w = 244, h = 48,
+    color = { 0.28, 0.10, 0.13 }, activo = puede_salir == true } }
   local function agregar(id, texto, x, w, activo)
     local colores = {
       menos = { 0.18, 0.28, 0.34 }, mas = { 0.18, 0.28, 0.34 },
@@ -393,6 +407,43 @@ local function texto(r, contenido, x, y, w, fuente, color)
   love.graphics.setFont(r[fuente or "texto"])
   love.graphics.setColor(color or TEXTO)
   love.graphics.printf(contenido, x, y, w, "center")
+end
+function Vista.fichas(r, jugador, x, y, avance)
+  local monto = 0
+  for _, m in ipairs(jugador.manos) do monto = monto + m.apuesta end
+  if monto == 0 then return end
+  local g, pilas = love.graphics, Reglas.fichas(monto)
+  local colores = { [10] = { 0.68, 0.16, 0.17 }, [5] = { 0.18, 0.35, 0.72 },
+    [2] = { 0.15, 0.52, 0.35 }, [1] = { 0.78, 0.78, 0.72 } }
+  local desplazamiento = 35 * (1 - avance) ^ 2
+  for i, pila in ipairs(pilas) do
+    local cx, cy = x + (i - (#pilas + 1) / 2) * 34 - desplazamiento, y
+    g.setColor(0, 0, 0, 0.3)
+    g.ellipse("fill", cx + 3, cy + 6, 17, 9)
+    for k = 1, math.min(pila.cantidad, 6) do
+      local py = cy - (k - 1) * 4
+      g.setColor(0.08, 0.10, 0.09, 1)
+      g.ellipse("fill", cx, py + 3, 15, 8)
+      g.setColor(colores[pila.valor])
+      g.ellipse("fill", cx, py, 15, 8)
+      g.setColor(0.95, 0.91, 0.77, 1)
+      g.setLineWidth(1)
+      g.ellipse("line", cx, py, 11, 5)
+      for angulo = 0, 5 do
+        local a = angulo * math.pi / 3
+        g.line(cx + math.cos(a) * 12, py + math.sin(a) * 6,
+          cx + math.cos(a) * 15, py + math.sin(a) * 8)
+      end
+    end
+  end
+  texto(r, "Apuesta: " .. monto .. " M", x - 100, y + 18, 200, "chica", ORO)
+end
+function Vista.opciones_sesion(estado)
+  return {
+    { id = "salir", texto = "Esc · Volver al casino", x = 310, y = 420, w = 300, h = 56, activo = true },
+    { id = "repetir", texto = "R · Jugar otras 2 manos", x = 670, y = 420, w = 300, h = 56,
+      activo = estado:puede_repetir() },
+  }
 end
 function Vista.mano(r, m, x, y, w, activa, oculta, indice)
   local g = love.graphics
@@ -432,7 +483,7 @@ function Vista.jugador(r, m, i, x, y, w)
     end
   end
 end
-function Vista.dibujar(r, m, confirmar_salida)
+function Vista.dibujar(r, m, estado)
   local g = love.graphics
   g.push("all")
   g.origin()
@@ -446,17 +497,20 @@ function Vista.dibujar(r, m, confirmar_salida)
     (ALTO - fondo:getHeight() * escala_fondo) / 2, 0, escala_fondo, escala_fondo)
   texto(r, "BLACKJACK", 24, 17, 330, "titulo", ORO)
   texto(r, "DINERO: " .. m:saldo(m.jugadores[1]) .. " M", 370, 30, 230, "chica", ORO)
-  texto(r, "PARTIDAS: " .. math.min(m.ronda, MAX_PARTIDAS) .. " / " .. MAX_PARTIDAS, 610, 30, 300, "chica")
+  texto(r, "MANOS: " .. math.min(m.ronda, MAX_PARTIDAS) .. " / " .. MAX_PARTIDAS, 610, 30, 300, "chica")
   texto(r, "CRUPIER", 420, 244, 440, "texto", ORO)
   Vista.mano(r, m.crupier, 460, 278, 360, m.fase == "crupier", not m.revelada and #m.crupier.cartas >= 2)
   Vista.jugador(r, m, 2, 26, 314, 390)
   Vista.jugador(r, m, 3, 864, 314, 390)
   Vista.jugador(r, m, 1, 440, 438, 400)
+  Vista.fichas(r, m.jugadores[1], 330, 604, m.fichas_tiempo or 0)
+  Vista.fichas(r, m.jugadores[2], 210, 560, m.fichas_tiempo or 0)
+  Vista.fichas(r, m.jugadores[3], 1070, 560, m.fichas_tiempo or 0)
   local mensaje = m.mensaje
   if m.fase == "apuestas" then mensaje = mensaje .. "  Apuesta: " .. m.monto .. " M." end
   texto(r, mensaje, 50, 662, 1180, "texto")
   local mx, my = love.mouse.getPosition(); mx, my = (mx - ox) / s, (my - oy) / s
-  for _, b in ipairs(Vista.botones(m)) do
+  for _, b in ipairs(Vista.botones(m, estado:puede_salir())) do
     local encima = mx >= b.x and mx <= b.x + b.w and my >= b.y and my <= b.y + b.h
     local color = b.color
     g.setColor(0.025, 0.025, 0.025, 0.72)
@@ -470,44 +524,50 @@ function Vista.dibujar(r, m, confirmar_salida)
     g.rectangle("line", b.x, b.y, b.w, b.h, 13)
     texto(r, b.texto, b.x, b.y + 10, b.w, "chica", b.activo and TEXTO or { 0.58, 0.58, 0.58 })
   end
-  if confirmar_salida then
+  if estado.jugada_registrada then
     g.setColor(0, 0, 0, 0.78)
     g.rectangle("fill", 0, 0, ANCHO, ALTO)
     g.setColor(0.06, 0.10, 0.09, 0.98)
-    g.rectangle("fill", 300, 285, 680, 230, 14)
+    g.rectangle("fill", 260, 260, 760, 280, 14)
     g.setColor(ORO)
     g.setLineWidth(2)
-    g.rectangle("line", 300, 285, 680, 230, 14)
-    texto(r, "¿Salir del blackjack?", 330, 310, 620, "titulo", ORO)
-    texto(r, "Si sales ahora, perderás las partidas restantes de las 4 rondas.", 330, 370, 620, "chica")
-    for _, b in ipairs({
-      { texto = "Sí, salir", x = 390, color = { 0.38, 0.13, 0.15 } },
-      { texto = "No, seguir jugando", x = 650, color = { 0.16, 0.31, 0.31 } },
-    }) do
-      g.setColor(b.color)
-      g.rectangle("fill", b.x, 440, 240, 52, 13)
-      g.setColor(ORO)
-      g.rectangle("line", b.x, 440, 240, 52, 13)
-      texto(r, b.texto, b.x, 453, 240, "chica")
+    g.rectangle("line", 260, 260, 760, 280, 14)
+    texto(r, "Juego completado", 290, 282, 700, "titulo", ORO)
+    texto(r, "2 manos terminadas: +1 jugada del casino. ¿Quieres jugar otra vez?", 290, 350, 700, "chica")
+    local aviso = "El siguiente juego cuenta como otra jugada al completar sus 2 manos."
+    if estado.puede_jugar_casino and not estado.puede_jugar_casino() then
+      aviso = "Llegaste al limite del casino. Debes volver al salon."
+    elseif not estado:puede_repetir() then aviso = "Saldo insuficiente. F1 agrega 3 M de prueba." end
+    texto(r, aviso, 290, 382, 700, "chica", ORO)
+    for i, b in ipairs(Vista.opciones_sesion(estado)) do
+      g.setColor(b.activo and { 0.16, 0.31, 0.31 } or { 0.15, 0.16, 0.17 })
+      g.rectangle("fill", b.x, b.y, b.w, b.h, 13)
+      g.setColor(i == estado.seleccion and ORO or TEXTO)
+      g.setLineWidth(i == estado.seleccion and 3 or 1)
+      g.rectangle("line", b.x, b.y, b.w, b.h, 13)
+      texto(r, b.texto, b.x, b.y + 17, b.w, "chica", b.activo and TEXTO or { 0.45, 0.45, 0.45 })
     end
+    texto(r, "← / → elige · Enter confirma", 290, 501, 700, "chica")
   end
-  texto(r, "Natural paga 3:2 · Victoria 1:1 · Una división · Ases divididos: una carta · ← / → apuesta", 40, 771, 1200, "chica")
+  texto(r, "Natural 3:2 · Victoria 1:1 · Una división · Ases divididos: una carta · ← / → apuesta · F1: +3 M (prueba)", 40, 771, 1200, "chica")
   g.pop()
 end
 
 -- Adaptador del subestado ya registrado: ningún callback global de LÖVE.
 function Blackjack:enter(context, machine, opciones)
   self.context, self.machine = context, machine
-  self.partidas = 0
+  self.partidas, self.total_apostado, self.jugada_registrada, self.seleccion = 0, 0, false, 1
   local opciones_motor = {}
   for clave, valor in pairs(opciones or {}) do opciones_motor[clave] = valor end
   local puede_jugar, al_jugar = opciones_motor.puede_jugar, opciones_motor.al_jugar
+  self.puede_jugar_casino = puede_jugar
+  self.al_jugar = al_jugar
   opciones_motor.puede_jugar = function()
     return self.partidas < MAX_PARTIDAS and (not puede_jugar or puede_jugar())
   end
   opciones_motor.al_jugar = function(monto)
     self.partidas = self.partidas + 1
-    if al_jugar then al_jugar(monto) end
+    self.total_apostado = self.total_apostado + monto
   end
   self.motor = Motor.nuevo(context.economy, opciones_motor)
   self.recursos = Vista.recursos()
@@ -515,18 +575,36 @@ function Blackjack:enter(context, machine, opciones)
   love.mouse.setVisible(true)
 end
 function Blackjack:listo_para_salir()
-  return self.motor.fase == "resultado" or self.motor.fase == "apuestas"
+  return self.jugada_registrada and self.motor.fase == "resultado"
+end
+function Blackjack:puede_salir()
+  return self:listo_para_salir()
+end
+function Blackjack:puede_repetir()
+  return self:puede_salir() and (not self.puede_jugar_casino or self.puede_jugar_casino())
+    and self.motor:saldo(self.motor.jugadores[1]) >= self.motor.minimo
+end
+function Blackjack:salir()
+  if not self:puede_salir() then
+    self.motor.mensaje = "Debes completar las 2 manos antes de salir. F1 agrega 3 M si necesitas saldo."
+    return false
+  end
+  return self.machine:switch(nil)
+end
+function Blackjack:repetir()
+  if not self:puede_repetir() then return false end
+  self.partidas, self.total_apostado, self.jugada_registrada, self.seleccion = 0, 0, false, 1
+  -- Mantener el PRNG y los saldos de los bots: repetir no vuelve a sembrar el
+  -- mazo ni reinicia dinero, recursos o la maquina de estados.
+  self.motor.ronda = 0
+  return self.motor:nueva_ronda()
 end
 function Blackjack:ejecutar(accion)
   local m = self.motor
-  if accion == "salir" then
-    if self.partidas >= MAX_PARTIDAS then self.machine:switch(nil)
-    else self.confirmar_salida = true end
-  elseif accion == "confirmar_salir" then
-    self.machine:switch(nil)
-  elseif accion == "cancelar_salir" then
-    self.confirmar_salida = false
-  elseif accion == "menos" then m:cambiar_monto(-1)
+  if accion == "salir" or accion == "confirmar_salir" then return self:salir() end
+  if accion == "repetir" then return self:repetir() end
+  if self.jugada_registrada then return end
+  if accion == "menos" then m:cambiar_monto(-1)
   elseif accion == "mas" then m:cambiar_monto(1)
   elseif accion == "confirmar" then m:confirmar()
   elseif accion == "siguiente" then
@@ -535,9 +613,14 @@ function Blackjack:ejecutar(accion)
 end
 function Blackjack:keypressed(key, _, isrepeat)
   if isrepeat then return end
-  if self.confirmar_salida then
-    if key == "y" then self:ejecutar("confirmar_salir")
-    elseif key == "n" or key == "escape" then self:ejecutar("cancelar_salir") end
+  if self.jugada_registrada then
+    if key == "left" or key == "up" then self.seleccion = 1
+    elseif key == "right" or key == "down" then self.seleccion = 2
+    elseif key == "escape" then self:salir()
+    elseif key == "r" then self:repetir()
+    elseif key == "return" or key == "z" then
+      self:ejecutar(self.seleccion == 1 and "salir" or "repetir")
+    end
     return
   end
   local mapa = { escape = "salir", left = "menos", down = "menos", right = "mas", up = "mas",
@@ -551,12 +634,16 @@ end
 function Blackjack:mousepressed(x, y, button)
   if button ~= 1 then return end
   local s, ox, oy = Vista.escala(); x, y = (x - ox) / s, (y - oy) / s
-  if self.confirmar_salida then
-    if x >= 390 and x <= 630 and y >= 440 and y <= 492 then self:ejecutar("confirmar_salir")
-    elseif x >= 650 and x <= 890 and y >= 440 and y <= 492 then self:ejecutar("cancelar_salir") end
+  if self.jugada_registrada then
+    for _, b in ipairs(Vista.opciones_sesion(self)) do
+      if b.activo and x >= b.x and x <= b.x + b.w and y >= b.y and y <= b.y + b.h then
+        self:ejecutar(b.id)
+        return
+      end
+    end
     return
   end
-  for _, b in ipairs(Vista.botones(self.motor)) do
+  for _, b in ipairs(Vista.botones(self.motor, self:puede_salir())) do
     if b.activo and x >= b.x and x <= b.x + b.w and y >= b.y and y <= b.y + b.h then
       self:ejecutar(b.id); return
     end
@@ -564,17 +651,23 @@ function Blackjack:mousepressed(x, y, button)
 end
 function Blackjack:update(dt)
   local motor = self.motor
-  if not self.confirmar_salida then motor:update(dt) end
+  motor:update(dt)
   for _, evento in ipairs(motor.eventos) do Audio.reproducir(evento) end
   motor.eventos = {}
   if motor.fase == "resultado" and self.partidas >= MAX_PARTIDAS then
-    self.machine:switch(nil)
+    -- Registrar la sesion una sola vez, despues del pago de la segunda mano.
+    if not self.jugada_registrada then
+      self.jugada_registrada = true
+      if self.al_jugar then self.al_jugar(self.total_apostado) end
+    end
   end
 end
-function Blackjack:draw() Vista.dibujar(self.recursos, self.motor, self.confirmar_salida) end
+function Blackjack:draw() Vista.dibujar(self.recursos, self.motor, self) end
 function Blackjack:leave()
   love.mouse.setVisible(self.raton_visible)
-  self.context, self.machine, self.motor, self.recursos, self.partidas, self.confirmar_salida = nil, nil, nil, nil, nil, nil
+  self.context, self.machine, self.motor, self.recursos, self.partidas, self.seleccion = nil, nil, nil, nil, nil, nil
+  self.al_jugar, self.total_apostado, self.jugada_registrada = nil, nil, nil
+  self.puede_jugar_casino = nil
 end
 -- API sin gráficos para pruebas deterministas y reutilización de las reglas.
 Blackjack.Reglas, Blackjack.Bot, Blackjack.Motor = Reglas, Bot, Motor

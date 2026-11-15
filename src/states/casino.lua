@@ -13,9 +13,8 @@ local Ruleta = require("src/states/casino/ruleta/ruleta")
 
 local casino = {}
 
-local RIGIDEZ_CAMARA = 7
-local ALTURA_CAMARA = 70
 local TAMANO_LETRA = 18
+local ALTURA_CAMARA = 70
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
@@ -23,9 +22,7 @@ local JUGADAS_POR_BLOQUE, CANSANCIO = 3, 0.08
 local NOCHE = 2
 local DINERO_PRUEBA = 3
 
-local PISO = { 0.88, 0.88, 0.88 }
-local PARED_IZQUIERDA = { 0.74, 0.74, 0.74 }
-local PARED_DERECHA = { 0.66, 0.66, 0.66 }
+local PISO = { 0.85, 0.85, 0.85 }
 local FIGURA = { 0.8, 0.8, 0.8 }
 local BORDE = { 0.2, 0.2, 0.2 }
 local TEXTO = { 0.1, 0.1, 0.1 }
@@ -36,14 +33,16 @@ local function rotulo(texto, x, y, ancho, color)
   love.graphics.printf(texto, x - ancho / 2, y - TAMANO_LETRA, ancho, "center")
 end
 
-local function figura(poligono, color)
+local function figura(poligono, color, borde)
   love.graphics.setColor(color)
   for _, triangulo in ipairs(love.math.triangulate(poligono)) do
     love.graphics.polygon("fill", triangulo)
   end
-  love.graphics.setColor(BORDE)
-  love.graphics.setLineWidth(3)
-  love.graphics.polygon("line", poligono)
+  if borde then
+    love.graphics.setColor(BORDE)
+    love.graphics.setLineWidth(3)
+    love.graphics.polygon("line", poligono)
+  end
 end
 
 local function cargar_fotos()
@@ -63,7 +62,6 @@ local function dibujar_mesa(objeto, imagen)
   local foto = objeto.foto
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(imagen, foto.x, foto.y, 0, foto.ancho / imagen:getWidth(), foto.alto / imagen:getHeight())
-  rotulo(objeto.nombre, foto.x + foto.ancho / 2, foto.y + foto.alto * 0.42, foto.ancho, PISO)
 end
 
 local function dibujar_mapa(fuente, fotos)
@@ -73,17 +71,14 @@ local function dibujar_mapa(fuente, fotos)
   love.graphics.setCanvas(lienzo)
   love.graphics.clear(PISO[1], PISO[2], PISO[3], 1)
   love.graphics.setFont(fuente)
-  figura(Plano.paredes.izquierda, PARED_IZQUIERDA)
-  figura(Plano.paredes.derecha, PARED_DERECHA)
-  rotulo("pared", 620, 430, 300)
-  rotulo("pared", 1600, 400, 300)
-  rotulo("piso", 1200, 1290, 300)
-  figura(Plano.puerta.marco, FIGURA)
-  rotulo("puerta", 1970, 680, 140)
-  figura(Plano.puerta.zona, PISO)
+  figura(Plano.suelo, PISO)
+  for _, capa in ipairs(Plano.capas) do
+    figura(capa.puntos, capa.color)
+  end
+  figura(Plano.puerta.marco, { 0.22, 0.22, 0.22 })
   for _, objeto in ipairs(Plano.objetos) do
     if not fotos[objeto] then
-      figura(objeto.choque, FIGURA)
+      figura(objeto.choque, FIGURA, true)
       rotulo(objeto.nombre, objeto.x, objeto.y, 240)
     end
   end
@@ -122,21 +117,20 @@ local function dibujar_marcador(fuente, dinero, jornada)
   end
 end
 
-function casino:encuadrar(dt)
+function casino:encuadrar()
   local ancho, alto = love.graphics.getDimensions()
+  -- Recortar y seguir al jugador, sin barras ni esquinas negras en ningun formato.
   local zoom = Encuadre.zoom(ancho, alto, Plano.vista.ancho, Plano.vista.alto)
-  local x, y = Encuadre.centro(self.jugador.x, self.jugador.y - ALTURA_CAMARA, ancho, alto, zoom, Plano.ancho, Plano
-  .alto)
-  if dt then
-    x = Encuadre.suavizar(self.camara.x, x, dt, RIGIDEZ_CAMARA)
-    y = Encuadre.suavizar(self.camara.y, y, dt, RIGIDEZ_CAMARA)
-  end
+  local x, y = Encuadre.centro(self.jugador.x, self.jugador.y - ALTURA_CAMARA,
+    ancho, alto, zoom, Plano.ancho, Plano.alto)
   self.camara:zoomTo(zoom)
   self.camara:lookAt(x, y)
 end
 
 function casino:enter(context)
   self.context = context
+  -- Saldo de prueba: cada entrada al salon empieza en cero; F1 agrega dinero.
+  context.economy:spend_money(context.economy:get_money())
   self.sub_estado = CasinoStateMachine.new({
     blackjack = Blackjack,
     poker = Poker,
@@ -230,6 +224,9 @@ function casino:revisar_limite()
   local mesa = self.sub_estado.current
   -- La ruleta cuenta al apostar: hay que esperar al resultado y al pago.
   if mesa and mesa.listo_para_salir and not mesa:listo_para_salir() then return end
+  -- Blackjack ya muestra su aviso de fin; al limite ofrece solo volver al
+  -- salon. La decision de otras tres jugadas se abre despues de esa salida.
+  if mesa and mesa.gestiona_limite then return end
   if mesa then
     self:abrir({ speaker = "Casino", text = "Completaste " .. self.jornada.jugadas .. " juegos. Debes volver al salón.",
       choices = { { text = "Volver al salón" } },
@@ -278,6 +275,15 @@ function casino:sentarse(mesa)
 end
 
 function casino:keypressed(tecla, scancode, isrepeat)
+  -- Temporal: disponible tanto en el salon como en las mesas, sin duplicar
+  -- el atajo propio de ruleta ni contar la ayuda como una jugada.
+  if tecla == "f1" then
+    if not isrepeat then
+      self.context.economy:add_money(DINERO_PRUEBA)
+      self:anotar("dinero_prueba", DINERO_PRUEBA)
+    end
+    return
+  end
   self:revisar_limite()
   if self.dialogo then
     self.dialogo:keypressed(tecla)
@@ -288,10 +294,7 @@ function casino:keypressed(tecla, scancode, isrepeat)
     self:revisar_limite()
     return
   end
-  if tecla == "f1" then
-    self.context.economy:add_money(DINERO_PRUEBA)
-    self:anotar("dinero_prueba", DINERO_PRUEBA)
-  elseif self.cercano and (tecla == "z" or tecla == "return") then
+  if self.cercano and (tecla == "z" or tecla == "return") then
     self:sentarse(self.cercano)
   end
 end
@@ -320,7 +323,7 @@ function casino:update(dt)
     end
     self.en_puerta = en_puerta
   end
-  self:encuadrar(dt)
+  self:encuadrar()
 end
 
 function casino:draw()
@@ -332,6 +335,7 @@ function casino:draw()
     end
     return
   end
+  self:encuadrar()
   love.graphics.push("all")
   self.camara:attach()
   love.graphics.setFont(self.fuente)

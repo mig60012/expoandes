@@ -20,10 +20,7 @@ function state_machine.load(context)
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  -- Inicio temporal directo para probar blackjack.
-  state_machine.context.economy:add_money(100)
-  state_machine:switch("casino")
-  state_machine.current.sub_estado:switch("blackjack", { minimo = 2 })
+  state_machine:switch("casa")
 end
 
 function state_machine:switch(name, ...)
