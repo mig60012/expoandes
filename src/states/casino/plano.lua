@@ -8,10 +8,6 @@ local function ovalo(x, y, rx, ry, lados)
   return puntos
 end
 
-local function rombo(x, y, a, b)
-  return { x, y, x + a, y + a / 2, x + a - b, y + (a + b) / 2, x - b, y + b / 2 }
-end
-
 local function colocar(puntos, factor, x, y)
   local colocados = {}
   for i = 1, #puntos, 2 do
@@ -39,22 +35,32 @@ local function solido(nombre, choque, extra)
   return objeto
 end
 
-local function foto(archivo, x, y, escala, caja)
+-- El plano se traza sobre la referencia de 1257 x 706 y se lleva al mundo.
+local ESCALA = 1.9
+local function escena(puntos)
+  return colocar(puntos, ESCALA, 0, 0)
+end
+
+local function foto(archivo, x, y, ancho, alto)
   return {
     archivo = archivo,
-    x = x + caja[1] * escala,
-    y = y + caja[2] * escala,
-    ancho = caja[3] * escala,
-    alto = caja[4] * escala,
+    x = x * ESCALA,
+    y = y * ESCALA,
+    ancho = ancho * ESCALA,
+    alto = alto * ESCALA,
   }
 end
 
-local function pie_izquierda(x)
-  return 400 + (1200 - x) / 2
-end
-
-local function pie_derecha(x)
-  return 400 + (x - 1200) / 2
+local function arco_puerta()
+  local puntos = { 975, 336 }
+  for i = 0, 24 do
+    local angulo = math.pi - i / 24 * math.pi
+    local x = 1018 + 43 * math.cos(angulo)
+    puntos[#puntos + 1] = x
+    puntos[#puntos + 1] = 304 + (x - 1018) / 2 - 88 * math.sin(angulo)
+  end
+  puntos[#puntos + 1], puntos[#puntos + 2] = 1061, 378
+  return escena(puntos)
 end
 
 local BLACKJACK = {
@@ -73,40 +79,34 @@ local Plano = {
   vista = { ancho = 1536, alto = 864 },
   estiramiento = 2,
   jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 84, alto = 150 },
-  suelo = { 24, 988, 1200, 400, 2376, 988, 2376, 1338, 24, 1338 },
-  paredes = {
-    izquierda = { 0, 0, 1200, 0, 1200, 400, 0, 1000 },
-    derecha = { 1200, 0, 2400, 0, 2400, 1000, 1200, 400 },
+  suelo = escena({ 102, 414, 477, 224, 767, 370, 905, 301, 1151, 423, 628, 686 }),
+  -- Las paredes se prolongan hasta el borde del lienzo. La camara muestra el
+  -- interior, no el recorte negro que rodeaba la maqueta isometrica.
+  capas = {
+    { color = { 0.54, 0.54, 0.54 }, puntos = escena({ 0, 0, 477, 0, 477, 224, 0, 466 }) },
+    { color = { 0.67, 0.67, 0.67 }, puntos = escena({ 477, 0, 767, 0, 767, 370, 477, 224 }) },
+    { color = { 0.54, 0.54, 0.54 }, puntos = escena({ 767, 0, 905, 0, 905, 301, 767, 370 }) },
+    { color = { 0.67, 0.67, 0.67 }, puntos = escena({ 905, 0, 1264, 0, 1264, 479, 905, 301 }) },
   },
-  inicio = { x = 1830, y = 857 },
+  inicio = { x = 975 * ESCALA, y = 423 * ESCALA },
   puerta = {
-    zona = { 1900, 752, 2040, 822, 1950, 867, 1810, 797 },
-    marco = { 1900, 750, 2040, 820, 2040, 590, 1900, 520 },
+    zona = escena({ 970, 345, 1048, 383, 1006, 404, 928, 366 }),
+    marco = arco_puerta(),
+    centro = { x = 988 * ESCALA, y = 375 * ESCALA },
   },
   objetos = {
-    solido("mesa blackjack", colocar(BLACKJACK, 1.66, 700, 1040), {
+    solido("mesa blackjack", escena(colocar(BLACKJACK, 0.65, 376, 354)), {
       interaccion = "blackjack", etiqueta = "Blackjack",
-      foto = foto("mesa_blackjack", 700, 1040, 1.6, { -128.4, -131.6, 255.2, 190.4 }),
+      foto = foto("mesa_blackjack", 293, 284, 166, 124),
     }),
-    solido("mesa póker", ovalo(1200, 900, 146, 104, 24), {
+    solido("mesa póker", escena(ovalo(452, 511, 51, 31, 24)), {
       interaccion = "poker", etiqueta = "Póker",
-      foto = foto("mesa_poker", 1200, 900, 1.8, { -78, -116, 155.2, 154.4 }),
+      foto = foto("mesa_poker", 401, 443, 102, 101),
     }),
-    solido("mesa ruleta", colocar(RULETA, 1.3, 1665, 1085), {
+    solido("mesa ruleta", escena(colocar(RULETA, 0.62, 802, 485)), {
       interaccion = "ruleta", etiqueta = "Ruleta",
-      foto = foto("mesa_ruleta", 1665, 1085, 1.35, { -191.2, -162, 380.8, 245.6 }),
+      foto = foto("mesa_ruleta", 680, 409, 248, 160),
     }),
-    solido("dueño", { 1230, 440, 1200, 456, 1170, 440, 1200, 424 }),
-    solido("barra", rombo(950, pie_izquierda(950) + 3, 168, 520)),
-    solido("caja", rombo(360, pie_izquierda(360) + 3, 130, 250)),
-    solido("tragamonedas", rombo(1330, pie_derecha(1330) + 3, 412, 70)),
-    solido("tragamonedas", rombo(2130, pie_derecha(2130) + 3, 204, 70)),
-    solido("tragamonedas", rombo(1290, 615, 308, 70)),
-    solido("tragamonedas", rombo(2060, 1075, 308, 70)),
-    solido("columna", ovalo(1010, 770, 42, 21, 24)),
-    solido("columna", ovalo(1450, 880, 42, 21, 24)),
-    solido("columna", ovalo(960, 1200, 42, 21, 24)),
-    solido("columna", ovalo(1380, 1240, 42, 21, 24)),
   },
 }
 

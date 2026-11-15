@@ -17,6 +17,8 @@ function Game.load()
         wife_knows_about_bets = false,
         daughter_savings_used = false,
         homeless_man_saw_player = false,
+        casino_decision_made = false,
+        casino_extra_games_accepted = false,
       },
       values = {
         family_points = 0,
@@ -32,7 +34,7 @@ function Game.load()
         N5 = { "A", "B", "C" },
       },
     }),
-    time_of_day = 2, -- 0 = mañana, 1 = tarde, 2 = noche (por ahora)
+    time_of_day = 0, -- 0 = mañana, 1 = tarde, 2 = noche
     state_machine = StateMachine,
   }
   Game.context.day_flow = DayFlow.new(Game.context)
