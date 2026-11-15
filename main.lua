@@ -33,3 +33,11 @@ end
 function love.mousereleased(x, y, button, istouch, presses)
   Game.mousereleased(x, y, button, istouch, presses)
 end
+
+function love.gamepadpressed(joystick, button)
+  Game.gamepadpressed(joystick, button)
+end
+
+function love.gamepadreleased(joystick, button)
+  Game.gamepadreleased(joystick, button)
+end
