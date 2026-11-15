@@ -54,14 +54,26 @@ end
 
 function DayFlow:record_work()
   assert(self:is_active(), "There is no active day")
+  if self.decisions.worked then
+    return
+  end
   self.decisions.worked = true
   self.decisions.spent_time_with_family = false
+  local rules = self.context.rules or {}
+  local payment = rules.work_debt_percentage or 0
+  local current = self.context.progress:get_value("debt_percentage") or 0
+  self.context.progress:set_value("debt_percentage", math.min(100, current + payment))
 end
 
 function DayFlow:record_family_time()
   assert(self:is_active(), "There is no active day")
   self.decisions.spent_time_with_family = true
   self.decisions.worked = false
+end
+
+function DayFlow:mark_morning_complete()
+  assert(self:is_active(), "There is no active day")
+  self.decisions.morning_complete = true
 end
 
 function DayFlow:record_return_home()
@@ -77,6 +89,39 @@ function DayFlow:record_economic_decision(decision)
     return false, result
   end
   self.decisions.economic_decision = decision
+  local rules = self.context.rules or {}
+  local payments = {
+    mortgage = rules.mortgage_debt_percentage or 0,
+    daughter_savings = rules.daughter_savings_debt_percentage or 0,
+    none = 0,
+  }
+  local current = self.context.progress:get_value("debt_percentage") or 0
+  self.context.progress:set_value("debt_percentage",
+    math.min(100, current + payments[decision]))
+  return true, result
+end
+
+function DayFlow:record_car_decision(decision)
+  assert(self.day == 3, "Car decision belongs to day 3")
+  assert(decision == "sell_known" or decision == "sell_unknown" or decision == "keep",
+    "Unknown car decision: " .. tostring(decision))
+
+  local games = self.decisions.games or self.context.progress:get_value("casino_games_today")
+  local sold = decision ~= "keep"
+  local wife_knows = decision == "sell_known"
+  if decision == "sell_known" and games ~= 3 then
+    return false, "Selling with an informed wife requires 3 games"
+  end
+  if decision == "sell_unknown" and games ~= 6 then
+    return false, "Selling without telling the wife requires 6 games"
+  end
+
+  self.decisions.car_sold = sold
+  self.decisions.wife_knows_about_car = wife_knows
+  local ok, result = StoryOutcomes.resolve_n3(self.context, self.decisions)
+  if not ok then
+    return false, result
+  end
   return true, result
 end
 

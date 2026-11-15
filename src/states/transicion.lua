@@ -10,7 +10,6 @@ local filtro_overlay = love.graphics.newImage("assets/transicion/Filtro_overlay.
 local player_pos = 0
 local DialogueView = require("src/states/transicion/dialogue")
 local light_flickering = false
--- Coordenadas sobre la imagen original; comparten la transformacion de la camara.
 local doors = {
   { x = 24, y = 388, w = 184, h = 342, state = "casa", label = "Entrar a casa" },
   { x = 8530, y = 298, w = 470, h = 427, state = "casino", label = "Entrar al casino" },
@@ -35,30 +34,6 @@ local function door_label_rect(door, x, scale, w)
   local left, right = x + door.x * scale, x + (door.x + door.w) * scale
   if right < 0 or left > w then return nil end
   return math.max(8, math.min(w - 180, left)), (door.y + door.h) * scale + 8, 172, 32
-end
-
-function transicion:door_at(px, py)
-  if self.dialogue:is_active() then return nil end
-  local w, h = love.graphics.getDimensions()
-  if px < 0 or px > w or py < 0 or py > h then return nil end
-  local x, scale = get_scene_layout(manana_bg, w, h)
-  local sx, sy = (px - x) / scale, py / scale
-  for _, door in ipairs(doors) do
-    local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
-    if sx >= door.x and sx <= door.x + door.w
-        and sy >= door.y and sy <= door.y + door.h then
-      return door
-    end
-    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh then
-      return door
-    end
-  end
-end
-
-function transicion:mousepressed(x, y, button)
-  if button ~= 1 then return end
-  local door = self:door_at(x, y)
-  if door then self.context.state_machine:switch(door.state) end
 end
 
 local function create_shader()
@@ -193,14 +168,28 @@ local function apply_add_filter(state, image, x, scale)
   state.current = dst
 end
 
-function transicion:enter(context)
+function transicion:enter(context, from_casa)
   self.context = context
-  if context.state_machine.last == "casa" then
+  self.transition_error = nil
+  if from_casa then
+    player_pos = 100
+  elseif context.state_machine.last == "casa" then
     player_pos = doors[1].x
-  elseif context.state_machine.last == "casino" then
-    player_pos = doors[2].x
+  else
+    player_pos = 8550
   end
-  self.dialogue = DialogueView.new(context, "dialogo.lua")
+  local filename = "dialogo.lua"
+  if from_casa and context.progress then
+    local day = context.progress:get_value("current_day")
+    if day == 2 then
+      filename = "day_2_transition.lua"
+    elseif day == 3 then
+      filename = "day_3_transition.lua"
+    elseif day == 4 then
+      filename = "day_4_transition.lua"
+    end
+  end
+  self.dialogue = DialogueView.new(context, filename)
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
@@ -216,12 +205,7 @@ function transicion:update(dt)
   if love.keyboard.isDown("d") then
     dir = dir + (h / 4) * dt
   end
-  local scale = h / manana_bg:getHeight()
-  local player_width = player:getWidth() * (h / player:getHeight()) / 6 / scale
-  if not self.dialogue:is_active() then
-    player_pos = math.max(0, math.min(manana_bg:getWidth() - player_width,
-      player_pos + dir / scale * (love.keyboard.isDown("h") and 20 or 1)))
-  end
+  player_pos = player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)
   if not light_flickering then
     if love.math.random() > 0.99 then
       light_flickering = true
@@ -231,6 +215,36 @@ function transicion:update(dt)
       light_flickering = false
     end
   end
+  if player_pos < 60 then
+    local day_flow = self.context.day_flow
+    if day_flow and day_flow:is_active() then
+      local games = self.context.progress:get_value("casino_games_today")
+      local finished, error_message
+      if games == 0 then
+        -- La primera entrada al juego también llega desde esta transición,
+        -- pero todavía no representa el regreso de una jornada.
+        finished = true
+      elseif games == 3 then
+        -- La decisión entre trabajar y quedarse con la familia se presenta
+        -- al llegar a casa.
+        finished = true
+      elseif games == 6 then
+        -- El regreso nocturno se resuelve en casa para los días 4 y 5.
+        finished = true
+      else
+        finished = false
+        error_message = "La jornada requiere 3 o 6 partidas antes de volver a casa."
+      end
+
+      if not finished then
+        self.transition_error = error_message
+        return
+      end
+    end
+    self.context.state_machine:switch("casa")
+  elseif player_pos > 8600 then
+    self.context.state_machine:switch("casino")
+  end
 end
 
 function transicion:keypressed(key)
@@ -238,6 +252,29 @@ function transicion:keypressed(key)
   if key == "c" and not self.dialogue:is_active() then
     self.context.state_machine:switch("casino")
   end
+end
+
+function transicion:door_at(px, py)
+  if self.dialogue:is_active() then return nil end
+  local w, h = love.graphics.getDimensions()
+  local x, scale = get_scene_layout(manana_bg, w, h)
+  local sx, sy = (px - x) / scale, py / scale
+  for _, door in ipairs(doors) do
+    local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
+    if sx >= door.x and sx <= door.x + door.w
+        and sy >= door.y and sy <= door.y + door.h then
+      return door
+    end
+    if lx and px >= lx and px <= lx + lw and py >= ly and py <= ly + lh then
+      return door
+    end
+  end
+end
+
+function transicion:mousepressed(x, y, button)
+  if button ~= 1 then return end
+  local door = self:door_at(x, y)
+  if door then self.context.state_machine:switch(door.state) end
 end
 
 function transicion:draw()
@@ -281,27 +318,12 @@ function transicion:draw()
   love.graphics.setShader()
   love.graphics.setBlendMode("alpha")
   love.graphics.pop()
-  if not self.dialogue:is_active() then
-    local hovered = self:door_at(love.mouse.getPosition())
-    love.graphics.push("all")
-    for _, door in ipairs(doors) do
-      local lx, ly, lw, lh = door_label_rect(door, x, scale, w)
-      if lx then
-        if door == hovered then
-          love.graphics.setColor(1, 1, 0.3, 1)
-          love.graphics.setLineWidth(2)
-          love.graphics.rectangle("line", x + door.x * scale, door.y * scale,
-            door.w * scale, door.h * scale)
-        end
-        love.graphics.setColor(0, 0, 0, 0.85)
-        love.graphics.rectangle("fill", lx, ly, lw, lh, 4, 4)
-        love.graphics.setColor(1, 1, door == hovered and 0.3 or 1, 1)
-        love.graphics.printf(door.label, lx, ly + 8, lw, "center")
-      end
-    end
-    love.graphics.pop()
-  end
   self.dialogue:draw()
+  if self.transition_error then
+    love.graphics.setColor(1, 0.35, 0.35, 1)
+    love.graphics.print(self.transition_error, 20, h - 30)
+    love.graphics.setColor(1, 1, 1, 1)
+  end
 end
 
 return transicion

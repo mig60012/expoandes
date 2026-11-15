@@ -69,4 +69,11 @@ No importes directamente otro estado para cambiar de pantalla. Usa la máquina d
   la escena inicial a partir de outcomes anteriores.
 - Los diálogos de transición pueden seleccionar su archivo según el día y los
   outcomes, pero deben evitar repetirse durante el regreso a casa.
+- Las escenas matutinas pueden consultar varios outcomes mediante condiciones
+  `all` y `any`, como la comprobación de dos días consecutivos de ausencia.
+- Las decisiones de una jornada deben registrarse antes de resolver su outcome;
+  por ejemplo, el Día 3 registra las jugadas y luego la decisión del carro
+  para calcular `N3`.
+- Las escenas posteriores pueden utilizar un outcome ya resuelto como punto de
+  entrada para seleccionar automáticamente una conversación.
 - No uses `love.graphics` dentro de sistemas que solo representan reglas.

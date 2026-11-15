@@ -17,8 +17,6 @@ function Game.load()
         wife_knows_about_bets = false,
         daughter_savings_used = false,
         homeless_man_saw_player = false,
-        casino_decision_made = false,
-        casino_extra_games_accepted = false,
       },
       values = {
         family_points = 0,
@@ -35,6 +33,13 @@ function Game.load()
       },
     }),
     time_of_day = 0, -- 0 = mañana, 1 = tarde, 2 = noche
+    rules = {
+      -- Valores narrativos configurables: el guion no fija estas cantidades.
+      family_points_threshold = 2,
+      work_debt_percentage = 20,
+      mortgage_debt_percentage = 80,
+      daughter_savings_debt_percentage = 40,
+    },
     state_machine = StateMachine,
   }
   Game.context.day_flow = DayFlow.new(Game.context)

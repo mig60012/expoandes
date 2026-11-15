@@ -166,8 +166,8 @@ Estos métodos son la interfaz recomendada para los estados. `record` se
 mantiene disponible para decisiones futuras que no pertenezcan a esta regla.
 
 Los estados de casa, trabajo y casino son responsables de registrar sus
-decisiones. En una fase posterior, el flujo visual podrá llamar a
-`start_next_day()` al completar las escenas correspondientes.
+decisiones. Al terminar una escena, el estado vuelve a entrar en `casa` o
+cambia a `finales` según corresponda.
 
 El estado `casino` puede registrar automáticamente tres o seis jugadas al
 salir cuando existe una jornada activa. El estado `trabajo` registra la
@@ -208,6 +208,20 @@ que el jugador llegue a esa parte de la historia.
 
 `Progress:reset()` restaura los valores iniciales de la partida. Es útil para
 reiniciar una partida y para preparar escenarios de prueba.
+
+## Economía y finales
+
+Los valores que el guion dejó abiertos están centralizados en
+`context.rules` dentro de `src/game.lua`. `final_evaluation.lua` aplica los
+límites narrativos:
+
+```text
+menos de 50 %       → final 1
+50 % a menos de 100 % → final 2 o 3 según PF
+100 %               → final 4
+```
+
+La pantalla `finales` presenta el resultado y permite reiniciar con `R`.
 
 ## Resultados narrativos
 
