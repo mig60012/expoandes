@@ -101,6 +101,11 @@ local function cubierto(x, y)
   return false
 end
 
+for _, lugar in ipairs({ { 690, 578, "detras del crupier del blackjack" }, { 1370, 800, "detras del crupier de la ruleta" },
+  { 985, 805, "detras del poker" } }) do
+  assert(cubierto(lugar[1], lugar[2]), "se puede pasar " .. lugar[3])
+end
+
 for x = 24, Plano.ancho - 24, 16 do
   for y = 400, Plano.alto - 12, 8 do
     local libre = Colision.dentro(x, y, Plano.suelo) and holgura(x, y) >= RADIO + 6
