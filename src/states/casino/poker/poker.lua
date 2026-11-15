@@ -14,12 +14,20 @@ local MESA = love.graphics.newImage("assets/casino/poker/Juegos.png")
 local FILTRO_ADD_PRIMERO = love.graphics.newImage("assets/casino/filtro_add_primero.png")
 local FILTRO_MULTIPLY = love.graphics.newImage("assets/casino/filtro_multiply_mitad.png")
 local FILTRO_ADD_ULTIMO = love.graphics.newImage("assets/casino/filtro_add_ultimo.png")
+local CLASIFICACION = love.graphics.newImage("assets/casino/poker/clasificacion_poker.png")
 
 local CARTAS_POR_JUGADOR = 2
 local CARTAS_COMUNALES = 5
 local DINERO_INICIAL_BOT = 1000
 local APUESTA_MINIMA = 10
 local DEAL_DELAY = 0.085
+local COLORES_FICHAS = {
+  { base = { 0.82, 0.12, 0.15 }, detalle = { 1, 0.76, 0.72 } },
+  { base = { 0.10, 0.58, 0.25 }, detalle = { 0.72, 1, 0.77 } },
+  { base = { 0.94, 0.70, 0.08 }, detalle = { 1, 0.96, 0.68 } },
+  { base = { 0.12, 0.12, 0.15 }, detalle = { 0.78, 0.78, 0.82 } },
+  { base = { 0.53, 0.22, 0.75 }, detalle = { 0.91, 0.77, 1 } },
+}
 -- Cada vez que te sientas en la mesa tienes derecho a jugar este numero de manos.
 -- Al terminar la ultima se te pide levantarte y la sesion cuenta como UNA jugada
 -- del dia en el casino.
@@ -87,7 +95,7 @@ local function crear_bots()
   return {
     Bot:new("Bot 2", DINERO_INICIAL_BOT, "Fish"),
     Bot:new("Bot 3", DINERO_INICIAL_BOT, "Maniac"),
-    Bot:new("Bot 4", DINERO_INICIAL_BOT, "Nit"),
+    Bot:new("Bot 4", DINERO_INICIAL_BOT, "Fish"),
   }
 end
 
@@ -97,13 +105,13 @@ end
 
 local function mesa_layout(width, height)
   return {
-    deck = { x = width * 0.73, y = height * 0.42, scale = 1.30 },
-    community = { x = width / 2, y = height * 0.46, width = 510, scale = 1.42 },
+    deck = { x = width * 0.71, y = height * 0.39, scale = 0.66 },
+    community = { x = width / 2, y = height * 0.47, width = 460, scale = 0.78 },
     players = {
-      { x = width / 2,    y = height * 0.8,  width = 230, scale = 1.92 },
-      { x = width * 0.13, y = height * 0.53, width = 195, scale = 1.20, shear = -0.5 },
-      { x = width / 2,    y = height * 0.2,  width = 180, scale = 0.90 },
-      { x = width * 0.87, y = height * 0.53, width = 195, scale = 1.20, shear = 0.5 },
+      { x = width / 2,    y = height * 0.74, width = 170, scale = 0.82 },
+      { x = width * 0.19, y = height * 0.52, width = 145, scale = 0.66, shear = -0.18 },
+      { x = width / 2,    y = height * 0.30, width = 145, scale = 0.66 },
+      { x = width * 0.81, y = height * 0.52, width = 145, scale = 0.66, shear = 0.18 },
     },
   }
 end
@@ -189,6 +197,10 @@ function Poker:enter(context, machine, opciones)
   self.context, self.machine = context, machine
   -- opciones las pasa el casino: { minimo, puede_jugar, al_jugar }
   self.opciones = opciones or {}
+  math.randomseed(os.time() + math.floor(love.timer.getTime() * 1000000))
+  math.random()
+  math.random()
+  math.random()
   self.jugada_registrada = false
   self.fuente_ui = love.graphics.newFont("assets/AntonSC-Regular.ttf", 20)
   self.fuente_boton = love.graphics.newFont("assets/AntonSC-Regular.ttf", 22)
@@ -216,6 +228,7 @@ function Poker:enter(context, machine, opciones)
   self.visual_pot = 0
   self.raise_value, self.raise_min, self.raise_max = nil, nil, nil
   self.dragging_raise, self.raise_mode, self.session_finished = false, false, false
+  self.mostrar_clasificacion = false
   self:iniciar_mano()
 end
 
@@ -238,14 +251,17 @@ function Poker:iniciar_mano()
   self.comunales = self.cartas:create_hand()
   self.comunales:draw_card(self.baraja, CARTAS_COMUNALES)
   preparar_mano(self.comunales, 0)
-  self.comunales_reveladas = 0
+  self.comunales_reveladas, self.comunales_visibles = 0, 3
   self.holdem_board = {}
-  self.bot_wait, self.bot_index, self.action_fx = nil, nil, nil
+  self.bot_wait, self.bot_index = nil, nil
   self.table_chips, self.pot_chips, self.folded_visuals = {}, {}, {}
   self.round_chips_collected, self.collecting_chips = false, false
   self.showdown_time = nil
 
   for indice, bot in ipairs(self.bots) do
+    if indice == 1 then
+      bot:setPersonality(math.random() < 0.5 and "Fish" or "Maniac")
+    end
     local mano = convertir_mano(self.jugadores[indice + 1])
     bot:receiveCards(mano[1], mano[2])
   end
@@ -279,7 +295,8 @@ function Poker:programar_reparto_inicial()
       })
     end
   end
-  for indice, carta in ipairs(self.comunales.cards) do
+  for indice = 1, 3 do
+    local carta = self.comunales.cards[indice]
     local x, y = destino_carta(layout.community, indice, CARTAS_COMUNALES)
     ocultar_carta(carta)
     orden = orden + 1
@@ -301,11 +318,8 @@ end
 function Poker:crear_fichas_apuesta(indice, amount)
   if amount <= 0 then return end
   local width, height = love.graphics.getDimensions()
-  local seat = mesa_layout(width, height).players[indice]
-  local anchor_x, anchor_y = seat.x, seat.y + 92 * seat.scale
-  if indice == 2 then anchor_x, anchor_y = seat.x + 112 * seat.scale, seat.y + 8 end
-  if indice == 4 then anchor_x, anchor_y = seat.x - 112 * seat.scale, seat.y + 8 end
-  if indice == 3 then anchor_x, anchor_y = seat.x, seat.y - 66 * seat.scale end
+  local anchor_x = width * ({ [1] = 0.50, [2] = 0.31, [3] = 0.50, [4] = 0.69 })[indice]
+  local anchor_y = height * ({ [1] = 0.65, [2] = 0.62, [3] = 0.37, [4] = 0.62 })[indice]
   local cantidad = math.min(8, math.max(1, math.ceil(amount / APUESTA_MINIMA)))
   -- Cada pila nueva representa fichas que llegan a la mesa (incluidas las ciegas).
   Audio.reproducir("chip_place")
@@ -316,6 +330,7 @@ function Poker:crear_fichas_apuesta(indice, amount)
       y = anchor_y - numero * 3,
       rotation = (math.random() - 0.5) * 0.24,
       value = amount / cantidad,
+      color_index = (#self.table_chips % #COLORES_FICHAS) + 1,
       state = "table",
     }
   end
@@ -340,7 +355,10 @@ function Poker:registrar_accion(player, action)
   if not indice or not action then return end
   self:crear_fichas_apuesta(indice, action.amount or 0)
   -- El sonido de fichas se reproduce en crear_fichas_apuesta().
-  if action.action == "fold" then self:deslizar_fold(indice) end
+  if action.action == "fold" then
+    preparar_mano(self.jugadores[indice], CARTAS_POR_JUGADOR)
+    Audio.reproducir("card_flip")
+  end
 end
 
 function Poker:mover_fichas_al_pozo()
@@ -351,8 +369,8 @@ function Poker:mover_fichas_al_pozo()
   for indice, ficha in ipairs(self.table_chips) do
     ficha.state, ficha.time, ficha.duration = "moving", 0, 0.56 + (indice % 3) * 0.08
     ficha.from_x, ficha.from_y = ficha.x, ficha.y
-    ficha.to_x = width / 2 + (math.random() - 0.5) * 48
-    ficha.to_y = height * 0.53 + (math.random() - 0.5) * 18
+    ficha.to_x = width / 2 + (math.random() - 0.5) * 36
+    ficha.to_y = height * 0.57 + (math.random() - 0.5) * 14
   end
 end
 
@@ -403,7 +421,7 @@ function Poker:terminar_mano()
   local se_revelan_cartas = false
   for indice, mano in ipairs(self.jugadores) do
     if self.game.players[indice].folded then
-      preparar_mano(mano, 0)
+      preparar_mano(mano, CARTAS_POR_JUGADOR)
     else
       -- Las cartas de los rivales pasan de boca abajo a boca arriba.
       if indice > 1 and not mano.cards[1].visible then se_revelan_cartas = true end
@@ -458,15 +476,6 @@ function Poker:ejecutar_turno_bot()
   local action = player.last_action
   if action then
     self:registrar_accion(player, action)
-    if action.action ~= "fold" then
-      self.action_fx = {
-        player = player,
-        action = action.action,
-        amount = action.amount,
-        time = 0,
-        duration = 0.72,
-      }
-    end
     self.input_lock = 0.42
   end
   if self.game.status == "showdown" then
@@ -490,8 +499,8 @@ function Poker:actualizar_botones()
     definiciones = {}
   elseif self.game:is_human_turn() and self.raise_mode then
     definiciones = {
-      { label = "CANCEL", action = function() self.raise_mode = false end, color = { 0.22, 0.20, 0.20 } },
-      { label = "DONE", action = function() self:accion_jugador("raise") end, color = { 0.47, 0.32, 0.14 } },
+      { label = "CANCELAR", action = function() self.raise_mode = false end, color = { 0.22, 0.20, 0.20 } },
+      { label = "APOSTAR", action = function() self:accion_jugador("raise") end, color = { 0.47, 0.32, 0.14 } },
     }
   elseif self.game:is_human_turn() then
     local por_pagar = self.game:get_amount_to_call(self.game.players[1])
@@ -517,7 +526,10 @@ function Poker:actualizar_botones()
     if puede_raise then
       definiciones[#definiciones + 1] = {
         label = "RAISE  " .. (self.raise_value or minimo_raise),
-        action = function() self.raise_mode = true end,
+        action = function()
+          self.raise_value = minimo_raise
+          self.raise_mode = true
+        end,
         color = { 0.47, 0.32, 0.14 },
       }
       definiciones[#definiciones + 1] = {
@@ -529,14 +541,14 @@ function Poker:actualizar_botones()
   elseif self.game.can_advance and not self.collecting_chips then
     definiciones = {
       {
-        label = self.comunales_reveladas < CARTAS_COMUNALES and "NEXT" or "SHOWDOWN",
+        label = self.comunales_reveladas < CARTAS_COMUNALES and "SIGUIENTE" or "MOSTRAR",
         action = function() self:avanzar_o_mostrar_resultado() end,
         color = { 0.22, 0.35, 0.28 }
       },
     }
   elseif self.game.status == "showdown" and not self.collecting_chips and not self.session_finished then
     definiciones = {
-      { label = "NEW HAND", action = function() self:iniciar_mano() end, color = { 0.22, 0.35, 0.28 } },
+      { label = "OTRA RONDA", action = function() self:iniciar_mano() end, color = { 0.10, 0.58, 0.28 } },
     }
   elseif self.game.status == "showdown" and not self.collecting_chips and self.session_finished then
     definiciones = {
@@ -593,13 +605,23 @@ function Poker:actualizar_raise_desde_mouse(x)
 end
 
 function Poker:keypressed(key)
-  if key == "escape" then
+  if key == "escape" and self.mostrar_clasificacion then
+    self.mostrar_clasificacion = false
+  elseif key == "escape" then
     self:salir()
   end
 end
 
 function Poker:mousepressed(x, y, button)
-  if button ~= 1 or self.input_lock > 0 then return end
+  if button ~= 1 then return end
+  local width, height = love.graphics.getDimensions()
+  local ranking = { x = width / 2 - 110, y = 18, w = 220, h = 42 }
+  if x >= ranking.x and x <= ranking.x + ranking.w
+    and y >= ranking.y and y <= ranking.y + ranking.h then
+    self.mostrar_clasificacion = not self.mostrar_clasificacion
+    return
+  end
+  if self.mostrar_clasificacion or self.input_lock > 0 then return end
   if self.slider and punto_en_rect(x, y, self.slider) and self.raise_min then
     self.dragging_raise = true
     self:actualizar_raise_desde_mouse(x)
@@ -636,8 +658,24 @@ function Poker:revelar_siguiente()
   end
 
   local nuevas = siguiente - self.comunales_reveladas
-  for indice = self.comunales_reveladas + 1, siguiente do
-    mostrar_carta(self.comunales.cards[indice])
+  self.comunales_visibles = siguiente
+  if siguiente == 3 then
+    for indice = 1, siguiente do
+      mostrar_carta(self.comunales.cards[indice])
+    end
+  else
+    local width, height = love.graphics.getDimensions()
+    local layout = mesa_layout(width, height)
+    local indice = siguiente
+    local carta = self.comunales.cards[indice]
+    local destino_x, destino_y = destino_carta(layout.community, indice, CARTAS_COMUNALES)
+    carta:deal_from(layout.deck.x, layout.deck.y, destino_x, destino_y, {
+      duration = 0.46,
+      on_arrive = function(carta_repartida)
+        mostrar_carta(carta_repartida)
+        Audio.reproducir("card_flip")
+      end,
+    })
   end
   self.comunales_reveladas = siguiente
 
@@ -649,7 +687,7 @@ function Poker:revelar_siguiente()
   local fase = siguiente == 3 and "flop" or siguiente == 4 and "turn" or "river"
   self.game:advance_phase(self.holdem_board, fase)
   self.round_chips_collected, self.collecting_chips = false, false
-  self.input_lock = (nuevas - 1) * DEAL_DELAY + 0.52
+  self.input_lock = nuevas > 1 and (nuevas - 1) * DEAL_DELAY + 0.75 or 0.62
 end
 
 function Poker:update(dt)
@@ -686,10 +724,6 @@ function Poker:update(dt)
   if self.collecting_chips and not moving_chips then self.collecting_chips = false end
 
   self.visual_pot = lerp(self.visual_pot, self.game.pot, math.min(1, dt * 12))
-  if self.action_fx then
-    self.action_fx.time = self.action_fx.time + dt
-    if self.action_fx.time >= self.action_fx.duration then self.action_fx = nil end
-  end
   if self.showdown_time then self.showdown_time = self.showdown_time + dt end
   self:actualizar_botones()
   local mouse_x, mouse_y = love.mouse.getPosition()
@@ -709,19 +743,23 @@ function Poker:update(dt)
   end
 end
 
-local function dibujar_comunales(estado, x, y)
-  estado.comunales:draw_at(x, y, 510, { scale = 1.42 })
+local function dibujar_comunales(estado, layout)
+  for indice = 1, estado.comunales_visibles do
+    local x, y = destino_carta(layout.community, indice, CARTAS_COMUNALES)
+    estado.comunales.cards[indice]:draw_at(x, y, { scale = layout.community.scale, shadow = false })
+  end
 end
 
 local function dibujar_ficha(ficha, pot)
-  local color = pot and { 0.37, 0.32, 0.24, 0.96 } or { 0.30, 0.28, 0.25, 0.94 }
+  local colores = COLORES_FICHAS[ficha.color_index or 1]
   love.graphics.setColor(0, 0, 0, 0.5)
   love.graphics.ellipse("fill", ficha.x + 2, ficha.y + 4, 13, 6)
-  love.graphics.setColor(color)
+  love.graphics.setColor(colores.base[1], colores.base[2], colores.base[3], pot and 1 or 0.96)
   love.graphics.ellipse("fill", ficha.x, ficha.y, 13, 5.5)
-  love.graphics.setColor(0.08, 0.06, 0.05, 0.86)
-  love.graphics.setLineWidth(1.5)
+  love.graphics.setColor(colores.detalle[1], colores.detalle[2], colores.detalle[3], 0.95)
+  love.graphics.setLineWidth(2)
   love.graphics.ellipse("line", ficha.x, ficha.y, 9, 3.4)
+  love.graphics.ellipse("fill", ficha.x, ficha.y, 3.2, 1.5)
 end
 
 local function dibujar_fichas_mesa(estado)
@@ -730,54 +768,12 @@ local function dibujar_fichas_mesa(estado)
 end
 
 local function dibujar_cruz_retirado(seat)
-  love.graphics.setColor(0.38, 0.08, 0.09, 0.72)
-  love.graphics.setLineWidth(5)
-  love.graphics.line(seat.x - 38 * seat.scale, seat.y - 34 * seat.scale,
-    seat.x + 38 * seat.scale, seat.y + 34 * seat.scale)
-  love.graphics.line(seat.x + 38 * seat.scale, seat.y - 34 * seat.scale,
-    seat.x - 38 * seat.scale, seat.y + 34 * seat.scale)
-end
-
-local function dibujar_marcador_posicion(game, indice, seat)
-  local x, y = seat.x - 58 * seat.scale, seat.y + 42 * seat.scale
-  if game.dealer_index == indice then
-    love.graphics.setColor(0.56, 0.47, 0.31, 0.95)
-    love.graphics.circle("fill", x, y, 13 * seat.scale)
-    love.graphics.setColor(0.10, 0.08, 0.07, 0.9)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", x, y, 9 * seat.scale)
-  elseif game.small_blind_index == indice then
-    love.graphics.setColor(0.24, 0.29, 0.30, 0.95)
-    love.graphics.circle("fill", x, y, 10 * seat.scale)
-  elseif game.big_blind_index == indice then
-    love.graphics.setColor(0.36, 0.22, 0.18, 0.95)
-    love.graphics.circle("fill", x, y, 12 * seat.scale)
-  end
-end
-
-local function dibujar_accion_volando(estado, width, height, layout)
-  local fx = estado.action_fx
-  if not fx then return end
-  local indice
-  for i, player in ipairs(estado.game.players) do
-    if player == fx.player then
-      indice = i
-      break
-    end
-  end
-  local seat = indice and layout.players[indice]
-  if not seat then return end
-  local t = math.min(1, fx.time / fx.duration)
-  local eased = 1 - (1 - t) ^ 3
-  local x = lerp(seat.x, width / 2, eased)
-  local y = lerp(seat.y + 48, height * 0.54, eased) - math.sin(t * math.pi) * 35
-  local color = fx.action == "raise" and { 0.58, 0.39, 0.17, 0.95 }
-      or fx.action == "fold" and { 0.45, 0.10, 0.11, 0.9 }
-      or { 0.34, 0.37, 0.39, 0.9 }
-  love.graphics.setColor(color)
-  love.graphics.ellipse("fill", x, y, 15, 6)
-  love.graphics.setColor(0.04, 0.04, 0.04, 0.7)
-  love.graphics.ellipse("line", x, y, 11, 4)
+  love.graphics.setColor(0.98, 0.06, 0.08, 0.96)
+  love.graphics.setLineWidth(math.max(4, 7 * seat.scale))
+  love.graphics.line(seat.x - 38 * seat.scale, seat.y - 30 * seat.scale,
+    seat.x + 38 * seat.scale, seat.y + 30 * seat.scale)
+  love.graphics.line(seat.x + 38 * seat.scale, seat.y - 30 * seat.scale,
+    seat.x - 38 * seat.scale, seat.y + 30 * seat.scale)
 end
 
 local function dibujar_jugadores(estado, width, height)
@@ -794,18 +790,15 @@ local function dibujar_jugadores(estado, width, height)
       love.graphics.setColor(0, 0, 0, 0.42)
       love.graphics.ellipse("fill", asiento.x, asiento.y + 42, 84 * asiento.scale, 26 * asiento.scale)
     end
-    if not player.folded then
-      love.graphics.setColor(1, 1, 1, 1)
-      estado.jugadores[indice]:draw_at(asiento.x, asiento.y, asiento.width, asiento)
-    end
+    love.graphics.setColor(1, 1, 1, player.folded and 0.72 or 1)
+    estado.jugadores[indice]:draw_at(asiento.x, asiento.y, asiento.width,
+      { scale = asiento.scale, shear = asiento.shear, shadow = false })
     if player.folded then dibujar_cruz_retirado(asiento) end
-    dibujar_marcador_posicion(estado.game, indice, asiento)
   end
   for _, visual in ipairs(estado.folded_visuals) do
-    visual.card:draw_at(visual.x, visual.y, { scale = visual.scale, rotation = 0.36 })
+    visual.card:draw_at(visual.x, visual.y, { scale = visual.scale, rotation = 0.36, shadow = false })
   end
   dibujar_fichas_mesa(estado)
-  dibujar_accion_volando(estado, width, height, layout)
   love.graphics.setColor(1, 1, 1, 1)
 end
 
@@ -852,20 +845,31 @@ local function dibujar_ui(estado, width, height)
   local jugador = estado.game.players[1]
   love.graphics.setFont(estado.fuente_ui)
   love.graphics.setColor(1, 1, 1, 0.93)
-  love.graphics.printf("POT  " .. math.floor(estado.visual_pot + 0.5), width * 0.41, height * 0.55, width * 0.18,
+  local panel = { x = 20, y = 88, w = 210, h = 112 }
+  love.graphics.setColor(1, 1, 1, 0.95)
+  love.graphics.printf("ESTADÍSTICAS DE LA PARTIDA", panel.x - 35,
+    18 + (42 - estado.fuente_ui:getHeight()) / 2, panel.w + 70, "center")
+  love.graphics.setColor(0.02, 0.025, 0.04, 0.62)
+  love.graphics.rectangle("fill", panel.x, panel.y, panel.w, panel.h, 10, 10)
+  love.graphics.setColor(1, 1, 1, 0.93)
+  love.graphics.printf("BOTE  " .. math.floor(estado.visual_pot + 0.5), panel.x + 12, panel.y + 8, panel.w - 24,
     "center")
-  love.graphics.setColor(1, 1, 1, 0.72)
-  love.graphics.printf("STACK  " .. jugador.stack, width * 0.41, height * 0.59, width * 0.18, "center")
-  love.graphics.printf("BET  " .. estado.game.current_bet, width * 0.41, height * 0.63, width * 0.18, "center")
-  love.graphics.printf("CALL  " .. estado.game:get_amount_to_call(jugador), width * 0.41, height * 0.67, width * 0.18,
+  love.graphics.setColor(1, 1, 1, 0.78)
+  love.graphics.printf("FICHAS  " .. jugador.stack, panel.x + 12, panel.y + 32, panel.w - 24, "center")
+  love.graphics.printf("APUESTA  " .. estado.game.current_bet, panel.x + 12, panel.y + 56, panel.w - 24, "center")
+  love.graphics.printf("IGUALAR  " .. estado.game:get_amount_to_call(jugador), panel.x + 12, panel.y + 80, panel.w - 24,
     "center")
 
   if estado.input_lock <= 0 and estado.raise_mode and estado.game:is_human_turn()
       and estado.raise_min and estado.raise_max and estado.raise_max >= estado.raise_min then
-    estado.slider = { x = width / 2, y = height * 0.84, w = 360, h = 24 }
+    estado.slider = { x = width / 2, y = height * 0.84, w = 360, h = 40 }
     local slider = estado.slider
     local valor = estado.raise_value or estado.raise_min
     local progreso = (valor - estado.raise_min) / math.max(1, estado.raise_max - estado.raise_min)
+    love.graphics.setFont(estado.fuente_ui)
+    love.graphics.setColor(1, 1, 1, 0.96)
+    love.graphics.printf("APUESTA: " .. math.floor(valor + 0.5), slider.x - slider.w / 2, slider.y - 38, slider.w,
+      "center")
     love.graphics.setColor(0.03, 0.03, 0.03, 0.82)
     love.graphics.rectangle("fill", slider.x - slider.w / 2, slider.y - 3, slider.w, 6, 3, 3)
     love.graphics.setColor(0.40, 0.28, 0.16, 0.8)
@@ -896,11 +900,12 @@ local function dibujar_showdown(estado, width, height, layout)
       love.graphics.ellipse("fill", seat.x, seat.y, 150 * seat.scale, 125 * seat.scale)
       love.graphics.setColor(0.38, 0.32, 0.20, 0.10 + tiempo * 0.14)
       love.graphics.ellipse("fill", layout.community.x, layout.community.y, 280, 110)
-      estado.jugadores[indice]:draw_at(seat.x, seat.y, seat.width, seat)
+      estado.jugadores[indice]:draw_at(seat.x, seat.y, seat.width,
+        { scale = seat.scale, shear = seat.shear, shadow = false })
     end
   end
   love.graphics.setBlendMode("alpha")
-  dibujar_comunales(estado, layout.community.x, layout.community.y)
+  dibujar_comunales(estado, layout)
 end
 
 local function dibujar_escena(estado, width, height)
@@ -908,7 +913,7 @@ local function dibujar_escena(estado, width, height)
 
   estado.baraja:set_position(layout.deck.x, layout.deck.y, layout.deck.scale)
   estado.baraja:draw_pile()
-  dibujar_comunales(estado, layout.community.x, layout.community.y)
+  dibujar_comunales(estado, layout)
   dibujar_jugadores(estado, width, height)
   dibujar_ui(estado, width, height)
   dibujar_showdown(estado, width, height, layout)
@@ -945,9 +950,48 @@ function Poker:draw()
   love.graphics.draw(self.current, 0, 0)
   love.graphics.setFont(self.fuente_ui)
   love.graphics.setColor(1, 1, 1, 1)
+  local boton = { x = width / 2 - 110, y = 18, w = 220, h = 42 }
   local aviso = self.jugada_registrada and "Esc: volver al casino"
     or "Completa un juego de 3 manos antes de salir"
-  love.graphics.printf(aviso, 0, 12, width, "center")
+  love.graphics.printf(aviso, width * 0.58, boton.y + (boton.h - self.fuente_ui:getHeight()) / 2,
+    width * 0.40, "right")
+  if self.mostrar_clasificacion then
+    love.graphics.setColor(0, 0, 0, 0.78)
+    love.graphics.rectangle("fill", 0, 0, width, height)
+    local imagen_width, imagen_height = CLASIFICACION:getDimensions()
+    local escala_imagen = math.min(width * 0.78 / imagen_width, height * 0.88 / imagen_height)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(CLASIFICACION, (width - imagen_width * escala_imagen) / 2,
+      (height - imagen_height * escala_imagen) / 2, 0, escala_imagen, escala_imagen)
+  end
+  if self.game.status == "showdown" and not self.collecting_chips and not self.session_finished
+      and not self.mostrar_clasificacion then
+    local siguiente = self.botones[1] or { x = width / 2, y = height * 0.94, w = 150, h = 52, press = 0 }
+    local scale = (siguiente.press or 0) > 0 and 0.90 or 1
+    local w, h = siguiente.w * scale, siguiente.h * scale
+    local x, y = siguiente.x, siguiente.y
+    local hover = punto_en_rect(love.mouse.getX(), love.mouse.getY(), siguiente)
+    love.graphics.setColor(0, 0, 0, 0.32)
+    love.graphics.rectangle("fill", x - w / 2 + 3, y - h / 2 + 5, w, h, 14, 14)
+    love.graphics.setColor(0.08, 0.62, 0.27, 1)
+    love.graphics.rectangle("fill", x - w / 2, y - h / 2, w, h, 14, 14)
+    if hover then
+      love.graphics.setColor(0.42, 0.95, 0.55, 0.9)
+      love.graphics.setLineWidth(2)
+      love.graphics.rectangle("line", x - w / 2 - 3, y - h / 2 - 3, w + 6, h + 6, 16, 16)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setFont(self.fuente_boton)
+    love.graphics.printf("OTRA RONDA", x - w / 2, y - self.fuente_boton:getHeight() / 2, w, "center")
+  end
+  love.graphics.setColor(0, 0, 0, 0.38)
+  love.graphics.rectangle("fill", boton.x + 3, boton.y + 4, boton.w, boton.h, 12, 12)
+  love.graphics.setColor(0.42, 0.29, 0.12, 1)
+  love.graphics.rectangle("fill", boton.x, boton.y, boton.w, boton.h, 12, 12)
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setFont(self.fuente_boton)
+  local titulo = self.mostrar_clasificacion and "CERRAR MANOS DE POKER" or "MANOS DE POKER"
+  love.graphics.printf(titulo, boton.x, boton.y + (boton.h - self.fuente_boton:getHeight()) / 2, boton.w, "center")
   love.graphics.pop()
 end
 
@@ -956,9 +1000,10 @@ function Poker:leave()
   self.cartas, self.baraja, self.jugadores, self.comunales = nil, nil, nil, nil
   self.bots, self.holdem_board, self.game = nil, nil, nil
   self.comunales_reveladas, self.input_lock = nil, nil
-  self.bot_wait, self.bot_index, self.action_fx = nil, nil, nil
+  self.bot_wait, self.bot_index = nil, nil
   self.canvas_a, self.canvas_b, self.current, self.multiply_shader = nil, nil, nil, nil
   self.fuente_ui, self.fuente_boton = nil, nil
+  self.mostrar_clasificacion = nil
 end
 
 return Poker

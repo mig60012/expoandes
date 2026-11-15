@@ -20,7 +20,16 @@ function state_machine.load(context)
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  state_machine:switch("casa")
+  state_machine:switch("casino")
+  state_machine.current.sub_estado:switch("poker", {
+    minimo = 3,
+    puede_jugar = function()
+      return not state_machine.current.jornada:completa()
+    end,
+    al_jugar = function(monto)
+      state_machine.current:jugada("poker", monto)
+    end,
+  })
 end
 
 function state_machine:switch(name, ...)

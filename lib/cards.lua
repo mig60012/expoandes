@@ -136,15 +136,17 @@ function Card:update(dt)
     if self.turn_factor > 1 then self.turning = false end
 end
 
-local function draw_card_image(card, x, y, rotation, scale, shadow_height, rotate)
+local function draw_card_image(card, x, y, rotation, scale, shadow_height, rotate, shadow)
     local image = card.visible and card.front or card.back
     if not image then return end
 
-    local shadow_scale = 1 + shadow_height / 90
-    love.graphics.setColor(0, 0, 0, 0.20 * shadow_scale)
-    love.graphics.ellipse("fill", x, y + CARD_HEIGHT * 0.48 + shadow_height * 0.12,
-        CARD_WIDTH * 0.42 * shadow_scale, CARD_HEIGHT * 0.11 * shadow_scale)
-    love.graphics.setColor(1, 1, 1, 1)
+    if shadow ~= false then
+        local shadow_scale = 1 + shadow_height / 90
+        love.graphics.setColor(0, 0, 0, 0.20 * shadow_scale)
+        love.graphics.ellipse("fill", x, y + CARD_HEIGHT * 0.48 + shadow_height * 0.12,
+            CARD_WIDTH * 0.42 * shadow_scale, CARD_HEIGHT * 0.11 * shadow_scale)
+        love.graphics.setColor(1, 1, 1, 1)
+    end
 
     love.graphics.push()
     love.graphics.translate(x, y - shadow_height)
@@ -187,7 +189,7 @@ function Card:draw_at(x, y, options)
 
     self.x, self.y = draw_x, draw_y
     self.rotation, self.scale = rotation, scale
-    draw_card_image(self, draw_x, draw_y, rotation, scale, height, options.rotate)
+    draw_card_image(self, draw_x, draw_y, rotation, scale, height, options.rotate, options.shadow)
 end
 
 function Card:draw(rotate)
@@ -370,6 +372,7 @@ function Hand:draw_at(x, y, width, options)
             scale = scale,
             rotation = shear * (index == 1 and -0.10 or 0.10),
             rotate = false,
+            shadow = options.shadow,
         })
     end
 end
