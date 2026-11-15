@@ -102,7 +102,8 @@ local function cubierto(x, y)
 end
 
 for _, lugar in ipairs({ { 690, 578, "detras del crupier del blackjack" }, { 1370, 800, "detras del crupier de la ruleta" },
-  { 985, 805, "detras del poker" } }) do
+  { 985, 805, "detras del poker" }, { 1340, 1205, "entre la ruleta y la pared" },
+  { 1560, 1095, "entre la ruleta y la pared por la derecha" } }) do
   assert(cubierto(lugar[1], lugar[2]), "se puede pasar " .. lugar[3])
 end
 
