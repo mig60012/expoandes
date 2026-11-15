@@ -28,6 +28,13 @@ local function validate(effect, context)
     if not progress:has_value(effect.key) then
       return false, "Unknown value '" .. effect.key .. "'"
     end
+  elseif effect.type == "set_outcome" then
+    if type(effect.key) ~= "string" or type(effect.value) ~= "string" then
+      return false, "set_outcome requires a string key and string value"
+    end
+    if not progress:has_outcome(effect.key) then
+      return false, "Unknown outcome '" .. effect.key .. "'"
+    end
   elseif effect.type == "add_value" then
     if type(effect.key) ~= "string" or type(effect.amount) ~= "number" then
       return false, "add_value requires a string key and numeric amount"
@@ -56,6 +63,13 @@ function Effects.apply(effect, context)
     context.progress:set_flag(effect.key, effect.value)
   elseif effect.type == "set_value" then
     context.progress:set_value(effect.key, effect.value)
+  elseif effect.type == "set_outcome" then
+    local ok, outcome_error = pcall(function()
+      context.progress:set_outcome(effect.key, effect.value)
+    end)
+    if not ok then
+      return false, outcome_error
+    end
   elseif effect.type == "add_value" then
     context.progress:add_value(effect.key, effect.amount)
   elseif effect.type == "add_money" then

@@ -189,6 +189,29 @@ function casino:abrir(nodo)
   self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
     if opcion and opcion.salir then
+      local day_flow = self.context.day_flow
+      if day_flow and day_flow:is_active() then
+        local jugadas = self.jornada.jugadas
+        if jugadas ~= 3 and jugadas ~= 6 then
+          self:abrir({
+            speaker = "Casino",
+            text = "Debes jugar 3 o 6 partidas antes de terminar el día.",
+            ending = true,
+          })
+          return
+        end
+
+        local registrado, error_registro = day_flow:record_games(jugadas)
+        if not registrado then
+          self:abrir({
+            speaker = "Sistema",
+            text = error_registro,
+            ending = true,
+          })
+          return
+        end
+      end
+
       self.context.time_of_day = self.jornada:completa() and NOCHE or TARDE
       self:anotar("salir")
       self.context.state_machine:switch("transicion")

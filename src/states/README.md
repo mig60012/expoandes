@@ -62,4 +62,11 @@ No importes directamente otro estado para cambiar de pantalla. Usa la máquina d
 - Si un estado utiliza diálogos, coloca su interacción y dibujo en un módulo
   propio dentro de su carpeta. Reutiliza `src/systems/dialogue.lua` para la
   lógica narrativa común.
+- Las decisiones específicas de una pantalla pueden devolver una acción al
+  estado mediante datos simples, como `action = "work"`; el adaptador visual no
+  debe modificar directamente el progreso narrativo.
+- Los diálogos de una jornada pueden usar `routes` para elegir automáticamente
+  la escena inicial a partir de outcomes anteriores.
+- Los diálogos de transición pueden seleccionar su archivo según el día y los
+  outcomes, pero deben evitar repetirse durante el regreso a casa.
 - No uses `love.graphics` dentro de sistemas que solo representan reglas.

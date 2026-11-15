@@ -165,9 +165,15 @@ local function apply_add_filter(state, image, x, scale)
   state.current = dst
 end
 
-function transicion:enter(context)
+function transicion:enter(context, from_casa)
   self.context = context
-  self.dialogue = DialogueView.new(context, "dialogo.lua")
+  self.transition_error = nil
+  if from_casa then player_pos = 100 else player_pos = 8550 end
+  local filename = "dialogo.lua"
+  if from_casa and context.progress:get_value("current_day") == 2 then
+    filename = "day_2_transition.lua"
+  end
+  self.dialogue = DialogueView.new(context, filename)
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
@@ -193,11 +199,45 @@ function transicion:update(dt)
       light_flickering = false
     end
   end
+  if player_pos < 60 then
+    local day_flow = self.context.day_flow
+    if day_flow and day_flow:is_active() then
+      local games = self.context.progress:get_value("casino_games_today")
+      local finished, error_message
+      if games == 0 then
+        -- La primera entrada al juego también llega desde esta transición,
+        -- pero todavía no representa el regreso de una jornada.
+        finished = true
+      elseif games == 3 then
+        -- La decisión entre trabajar y quedarse con la familia se presenta
+        -- al llegar a casa.
+        finished = true
+      elseif games == 6 then
+        finished, error_message = day_flow:finish_day()
+        if finished then
+          day_flow:advance_after_finished_day()
+          self.context.time_of_day = 0
+        end
+      else
+        finished = false
+        error_message = "La jornada requiere 3 o 6 partidas antes de volver a casa."
+      end
+
+      if not finished then
+        self.transition_error = error_message
+        return
+      end
+    end
+    self.context.state_machine:switch("casa")
+  elseif player_pos > 8600 then
+    self.context.state_machine:switch("casino")
+  end
 end
 
 function transicion:keypressed(key)
   self.dialogue:keypressed(key)
-  if key == "c" then    self.context.state_machine:switch("casino")
+  if key == "c" then
+    self.context.state_machine:switch("casino")
   end
 end
 
@@ -243,6 +283,11 @@ function transicion:draw()
   love.graphics.setBlendMode("alpha")
   love.graphics.pop()
   self.dialogue:draw()
+  if self.transition_error then
+    love.graphics.setColor(1, 0.35, 0.35, 1)
+    love.graphics.print(self.transition_error, 20, h - 30)
+    love.graphics.setColor(1, 1, 1, 1)
+  end
 end
 
 return transicion

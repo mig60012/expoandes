@@ -3,6 +3,7 @@
 local StateMachine = require("src/state_machine")
 local Economy = require("src/systems/economy")
 local Progress = require("src/systems/progress")
+local DayFlow = require("src/systems/day_flow")
 
 local Game = {}
 
@@ -22,11 +23,20 @@ function Game.load()
         debt_percentage = 0,
         casino_games_today = 0,
         casino_wins = 0,
+        current_day = 1,
+      },
+      outcome_options = {
+        N1 = { "A", "B", "C" },
+        N2 = { "A", "B", "C" },
+        N3 = { "A", "B", "C", "D" },
+        N5 = { "A", "B", "C" },
       },
     }),
     time_of_day = 2, -- 0 = mañana, 1 = tarde, 2 = noche (por ahora)
     state_machine = StateMachine,
   }
+  Game.context.day_flow = DayFlow.new(Game.context)
+  Game.context.day_flow:start_day(1)
 
   StateMachine.load(Game.context)
 end
