@@ -18,9 +18,14 @@ function StateMachine:enter(context)
 end
 
 function StateMachine:switch(name, ...)
+  -- Salidas normales respetan el compromiso de la mesa. leave() sigue siendo
+  -- incondicional para cerrar todo el casino o iniciar una partida nueva.
+  if self.current and self.current.puede_salir and not self.current:puede_salir() then
+    return false
+  end
   if name == nil then
     self:leave()
-    return
+    return true
   end
 
   local next_state = self.states[name]
@@ -31,6 +36,7 @@ function StateMachine:switch(name, ...)
   if self.current.enter then
     self.current:enter(self.context, self, ...)
   end
+  return true
 end
 
 function StateMachine:leave()

@@ -4,6 +4,7 @@ local Plano = require("src/states/casino/plano")
 
 local love_real = love
 local pulsadas = {}
+local ventana_ancho, ventana_alto = 1600, 900
 local fuente = {
   getHeight = function()
     return 20
@@ -25,13 +26,13 @@ love = {
       return { getWidth = function() return 1920 end, getHeight = function() return 1080 end }
     end,
     getDimensions = function()
-      return 1600, 900
+      return ventana_ancho, ventana_alto
     end,
     getHeight = function()
-      return 900
+      return ventana_alto
     end,
     getWidth = function()
-      return 1600
+      return ventana_ancho
     end,
   }, {
     __index = function()
@@ -83,6 +84,9 @@ local function entrar(dinero)
     },
   }
   casino:enter(contexto)
+  assert(contexto.economy:get_money() == 0, "entrar al casino reinicia solo el dinero a cero")
+  assert(casino.sub_estado.current == nil, "entrar abre el salon, no blackjack")
+  contexto.economy:add_money(dinero)
   abiertas = {}
   casino.sub_estado.states = {
     ruleta = mesa_de_prueba("ruleta"),
@@ -118,6 +122,11 @@ local function levantarse()
 end
 
 entrar(30)
+assert(casino.camara.scale == math.max(1600 / Plano.vista.ancho, 900 / Plano.vista.alto),
+  "la escala llena la pantalla recortando el salon")
+local screen_x, screen_y = casino.camara:cameraCoords(casino.jugador.x, casino.jugador.y)
+assert(screen_x > 0 and screen_x < 1600 and screen_y > 0 and screen_y < 900,
+  "el jugador permanece visible con la camara ampliada")
 for nombre, minimo in pairs({ ruleta = 1, blackjack = 2, poker = 3 }) do
   junto_a(nombre)
   pulsar("z")
@@ -321,6 +330,7 @@ assert(en_pantalla("Dinero: 28 M", "Jugadas: 1 de 3"), "muestra el dinero y las 
 local function reentrar()
   casino:leave()
   casino:enter(contexto)
+  assert(contexto.economy:get_money() == 0, "volver al casino reinicia el saldo de prueba")
   abiertas = {}
   casino.sub_estado.states = {
     ruleta = mesa_de_prueba("ruleta"),
