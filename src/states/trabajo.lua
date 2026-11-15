@@ -1,15 +1,23 @@
 local Trabajo = {}
+local View = require("src/ui/story_dialogue")
+local Data = require("src/data/dialogues/historia")
 
 local DURACION = 5
 
 function Trabajo:enter(context)
 	self.context = context
+	self.view = nil
+	if context.story then
+		self.view = View.new(context, Data.work, function() context.story:work_complete() end, { black = true })
+		return
+	end
 	self.tiempo = 0
 	self.fuente = love.graphics.newFont(32)
 	self.fuente_chica = love.graphics.newFont(18)
 end
 
 function Trabajo:update(dt)
+	if self.view then return end
 	self.tiempo = self.tiempo + dt
 	if self.tiempo >= DURACION then
 		local day_flow = self.context.day_flow
@@ -28,6 +36,11 @@ function Trabajo:update(dt)
 end
 
 function Trabajo:draw()
+	if self.view then
+		love.graphics.clear(0, 0, 0, 1)
+		self.view:draw()
+		return
+	end
 	local ancho, alto = love.graphics.getDimensions()
 
 	-- Esqueleto de la futura pantalla o sprite de trabajo.
@@ -45,5 +58,9 @@ function Trabajo:draw()
 	love.graphics.setFont(self.fuente_chica)
 	love.graphics.printf("Aqui aparecera el proximo sprite", 0, alto / 2 + 28, ancho, "center")
 end
+
+function Trabajo:keypressed(...) if self.view then self.view:keypressed(...) end end
+function Trabajo:mousepressed(...) if self.view then self.view:mousepressed(...) end end
+function Trabajo:leave() self.view = nil end
 
 return Trabajo

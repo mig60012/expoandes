@@ -13,8 +13,8 @@
 -- Capas de interaccion (la de arriba bloquea a las de abajo):
 --   1. cinematica  (pantalla negra con texto, click para avanzar)
 --   2. dialogo     (cuadro de texto, click para cerrar)
---   3. panel       (pestana con una lista de opciones, ej. el celular)
---   4. objetos     (puerta, maletin, foto, celular)
+--   3. panel       (infraestructura legada; el celular ya no tiene hotspot)
+--   4. objetos     (puerta, foto; maletin conservado pero inactivo)
 --
 -- Guardar como: src/states/casa.lua
 --]]
@@ -42,7 +42,6 @@ local RUTAS_SPRITES = {
   fondo   = "assets/casa/fondo.png",  -- 1920x1080 (16:9), la casa completa (de dia)
   fondo_noche = "assets/casa/fondo_noche.png",
   cursor  = "assets/casa/cursor.png", -- el "personaje" (reemplaza al mouse)
-  celular = "assets/casa/celular.png",
   -- La puerta, el maletin y la foto de la hija YA ESTAN DIBUJADOS en el fondo,
   -- por eso no tienen sprite propio: solo son zonas clickeables invisibles.
 }
@@ -155,7 +154,8 @@ function Casa:enter(context)
       h = 209,
       color = { 0.90, 0.75, 0.80 }, -- solo se usa si falta el fondo
       accion = function(casa)
-        casa:iniciar_dialogo_hija()
+        if casa.context.story then casa.context.story:inspect_photo(casa)
+        else casa:iniciar_dialogo_hija() end
       end,
     },
     {
@@ -176,6 +176,7 @@ function Casa:enter(context)
     {
       -- Maletin: a la izquierda, colgado/apoyado contra la pared
       id = "maletin",
+      activo = false, -- Conservado para futuras iteraciones, sin hover ni clic.
       nombre = "Maletin (ir al trabajo)",
       en_fondo = true,
       x = 0,
@@ -184,26 +185,16 @@ function Casa:enter(context)
       h = 315,
       color = { 0.25, 0.20, 0.15 },
       accion = function(casa)
-        casa.context.state_machine:switch("trabajo")
-      end,
-    },
-    {
-      -- Celular: NO esta en la imagen, asi que se mantiene el placeholder de siempre
-      -- (rectangulo oscuro con el texto "celular"). Esta sobre la cama.
-      id = "celular",
-      nombre = "Celular",
-      sprite = "celular",
-      x = 330,
-      y = 490,
-      w = 64,
-      h = 100,
-      color = { 0.20, 0.20, 0.25 },
-      accion = function(casa)
-        casa:abrir_celular()
+        if casa.context.story then casa.context.story:request_work(casa)
+        else casa.context.state_machine:switch("trabajo") end
       end,
     },
   }
 
+  if context.story then
+    context.story:enter_house(self)
+    return
+  end
   local day_flow = self.context.day_flow
   if day_flow and day_flow:is_active() then
     local current_day = self.context.progress:get_value("current_day")
@@ -449,7 +440,7 @@ function Casa:update(dt)
 
   -- Detectar sobre que objeto de la casa esta el mouse
   for _, obj in ipairs(self.objetos) do
-    if punto_en_rect(self.mx, self.my, obj) then
+    if obj.activo ~= false and punto_en_rect(self.mx, self.my, obj) then
       self.hover = obj
       break
     end
@@ -593,7 +584,7 @@ function Casa:draw()
 
   -- 5) Diálogo narrativo
   if self.dialogue then
-    self.dialogue:draw()
+    self.dialogue:draw(VW, VH)
   end
   if self.dialogue_error then
     love.graphics.setColor(1, 0.3, 0.3)
@@ -675,7 +666,7 @@ function Casa:mousepressed(px, py, button)
   end
 
   -- Capa 4: objetos de la casa
-  if self.hover and self.hover.accion then
+  if self.hover and self.hover.activo ~= false and self.hover.accion and punto_en_rect(x, y, self.hover) then
     self.hover.accion(self, self.context)
     return
   end
@@ -683,7 +674,7 @@ function Casa:mousepressed(px, py, button)
   -- También se acepta el clic directo aunque todavía no se haya ejecutado
   -- `update` (útil para entradas sintéticas y para el primer frame).
   for _, objeto in ipairs(self.objetos) do
-    if punto_en_rect(x, y, objeto) and objeto.accion then
+    if objeto.activo ~= false and punto_en_rect(x, y, objeto) and objeto.accion then
       objeto.accion(self, self.context)
       return
     end
@@ -695,9 +686,9 @@ function Casa:mousepressed(px, py, button)
   end
 end
 
-function Casa:keypressed(key)
+function Casa:keypressed(key, scancode, isrepeat)
   if self.dialogue then
-    self.dialogue:keypressed(key)
+    self.dialogue:keypressed(key, scancode, isrepeat)
     return
   end
   if key == "escape" then

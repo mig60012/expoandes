@@ -4,6 +4,7 @@ local StateMachine = require("src/state_machine")
 local Economy = require("src/systems/economy")
 local Progress = require("src/systems/progress")
 local DayFlow = require("src/systems/day_flow")
+local Story = require("src/story")
 
 local Game = {}
 
@@ -41,11 +42,14 @@ function Game.load()
       work_debt_percentage = 20,
       mortgage_debt_percentage = 80,
       daughter_savings_debt_percentage = 40,
+      car_debt_percentage = 20,
+      work_income = 5,
     },
     state_machine = StateMachine,
   }
   Game.context.day_flow = DayFlow.new(Game.context)
   Game.context.day_flow:start_day(1)
+  Game.context.story = Story.new(Game.context)
 
   StateMachine.load(Game.context)
 end

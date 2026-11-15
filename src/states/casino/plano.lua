@@ -35,8 +35,10 @@ local function solido(nombre, choque, extra)
   return objeto
 end
 
--- El plano se traza sobre la referencia de 1257 x 706 y se lleva al mundo.
+-- Paredes sobre la referencia de 1257 x 706; mesas y puerta calibradas contra
+-- el nuevo arte de 736 x 414, sin cambiar la asignacion de los juegos.
 local ESCALA = 1.9
+local ESCALA_ARTE = 2400 / 736
 local function escena(puntos)
   return colocar(puntos, ESCALA, 0, 0)
 end
@@ -49,6 +51,12 @@ local function foto(archivo, x, y, ancho, alto)
     ancho = ancho * ESCALA,
     alto = alto * ESCALA,
   }
+end
+
+local function arte(archivo, x, y, ancho, alto)
+  return { archivo = archivo, ruta = "assets/casino/" .. archivo .. ".png",
+    x = x * ESCALA_ARTE, y = y * ESCALA_ARTE,
+    ancho = ancho * ESCALA_ARTE, alto = alto * ESCALA_ARTE }
 end
 
 local function arco_puerta()
@@ -77,6 +85,7 @@ local Plano = {
   ancho = 2400,
   alto = 1350,
   vista = { ancho = 1536, alto = 864 },
+  arte = { ruta = "assets/casino/sala.png" },
   estiramiento = 2,
   jugador = { velocidad = 440, radio = 26, alcance = 96, ancho = 84, alto = 150 },
   suelo = escena({ 102, 414, 477, 224, 767, 370, 905, 301, 1151, 423, 628, 686 }),
@@ -88,24 +97,27 @@ local Plano = {
     { color = { 0.54, 0.54, 0.54 }, puntos = escena({ 767, 0, 905, 0, 905, 301, 767, 370 }) },
     { color = { 0.67, 0.67, 0.67 }, puntos = escena({ 905, 0, 1264, 0, 1264, 479, 905, 301 }) },
   },
-  inicio = { x = 975 * ESCALA, y = 423 * ESCALA },
+  inicio = { x = 574 * ESCALA_ARTE, y = 265 * ESCALA_ARTE },
   puerta = {
-    zona = escena({ 970, 345, 1048, 383, 1006, 404, 928, 366 }),
+    zona = colocar({ 598,221, 637,241, 611,254, 572,234 }, ESCALA_ARTE, 0, 0),
     marco = arco_puerta(),
-    centro = { x = 988 * ESCALA, y = 375 * ESCALA },
+    centro = { x = 604 * ESCALA_ARTE, y = 237 * ESCALA_ARTE },
   },
   objetos = {
-    solido("mesa blackjack", escena(colocar(BLACKJACK, 0.65, 376, 354)), {
+    solido("mesa blackjack", colocar(BLACKJACK, 0.40 * ESCALA_ARTE, 232 * ESCALA_ARTE, 220 * ESCALA_ARTE), {
       interaccion = "blackjack", etiqueta = "Blackjack",
-      foto = foto("mesa_blackjack", 293, 284, 166, 124),
+      foto = foto("mesa_blackjack", 294, 297, 191, 133),
+      arte = arte("sala_blackjack", 172, 174, 112, 78),
     }),
-    solido("mesa póker", escena(ovalo(452, 511, 51, 31, 24)), {
+    solido("mesa póker", colocar(ovalo(302, 285, 32, 22, 24), ESCALA_ARTE, 0, 0), {
       interaccion = "poker", etiqueta = "Póker",
-      foto = foto("mesa_poker", 401, 443, 102, 101),
+      foto = foto("mesa_poker", 459, 430, 114, 99),
+      arte = arte("sala_poker", 269, 252, 67, 58),
     }),
-    solido("mesa ruleta", escena(colocar(RULETA, 0.62, 802, 485)), {
+    solido("mesa ruleta", colocar(RULETA, 0.36 * ESCALA_ARTE, 421 * ESCALA_ARTE, 313 * ESCALA_ARTE), {
       interaccion = "ruleta", etiqueta = "Ruleta",
-      foto = foto("mesa_ruleta", 680, 409, 248, 160),
+      foto = foto("mesa_ruleta", 574, 428, 289, 188),
+      arte = arte("sala_ruleta", 336, 251, 169, 110),
     }),
   },
 }

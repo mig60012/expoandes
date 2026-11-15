@@ -10,6 +10,7 @@ local CasinoStateMachine = require("src/states/casino/state_machine")
 local Poker = require("src/states/casino/poker/poker")
 local Blackjack = require("src/states/casino/blackjack/blackjack")
 local Ruleta = require("src/states/casino/ruleta/ruleta")
+local Characters = require("src/ui/characters")
 
 local casino = {}
 
@@ -44,11 +45,12 @@ local function figura(poligono, color, borde)
   end
 end
 
-local function cargar_fotos()
+local function cargar_fotos(con_arte)
   local fotos = {}
   for _, objeto in ipairs(Plano.objetos) do
-    if objeto.foto then
-      local ok, imagen = pcall(love.graphics.newImage, CARPETA_FOTOS .. objeto.foto.archivo .. ".png")
+    local foto = con_arte and objeto.arte or objeto.foto
+    if foto then
+      local ok, imagen = pcall(love.graphics.newImage, foto.ruta or CARPETA_FOTOS .. foto.archivo .. ".png")
       if ok then
         fotos[objeto] = imagen
       end
@@ -57,19 +59,25 @@ local function cargar_fotos()
   return fotos
 end
 
-local function dibujar_mesa(objeto, imagen)
-  local foto = objeto.foto
+local function dibujar_mesa(objeto, imagen, con_arte)
+  local foto = con_arte and objeto.arte or objeto.foto
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(imagen, foto.x, foto.y, 0, foto.ancho / imagen:getWidth(), foto.alto / imagen:getHeight())
 end
 
-local function dibujar_mapa(fuente, fotos)
+local function dibujar_mapa(fuente, fotos, arte)
   local lienzo = love.graphics.newCanvas(Plano.ancho, Plano.alto, { msaa = 4 })
   love.graphics.push("all")
   love.graphics.origin()
   love.graphics.setCanvas(lienzo)
   love.graphics.clear(PISO[1], PISO[2], PISO[3], 1)
   love.graphics.setFont(fuente)
+  if arte then
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(arte, 0, 0, 0, Plano.ancho / arte:getWidth(), Plano.alto / arte:getHeight())
+    love.graphics.pop()
+    return lienzo
+  end
   figura(Plano.suelo, PISO)
   for _, capa in ipairs(Plano.capas) do
     figura(capa.puntos, capa.color)
@@ -86,11 +94,10 @@ local function dibujar_mapa(fuente, fotos)
 end
 
 local function dibujar_jugador(jugador)
-  local ancho, alto = Plano.jugador.ancho, Plano.jugador.alto
+  local alto = Plano.jugador.alto
   love.graphics.setColor(BORDE)
   love.graphics.ellipse("fill", jugador.x, jugador.y, Plano.jugador.radio, Plano.jugador.radio / Plano.estiramiento)
-  love.graphics.setColor(PERSONAJE)
-  love.graphics.rectangle("fill", jugador.x - ancho / 2, jugador.y - alto, ancho, alto)
+  Characters.world(jugador.x - alto * 0.22, jugador.y - alto, alto, false)
 end
 
 local function dibujar_aviso(objeto, fuente)
@@ -128,8 +135,9 @@ end
 
 function casino:enter(context)
   self.context = context
-  -- Saldo de prueba: cada entrada al salon empieza en cero; F1 agrega dinero.
-  context.economy:spend_money(context.economy:get_money())
+  -- La historia conserva el capital inicial de main y las ganancias. Los
+  -- estados aislados de pruebas mantienen el reinicio de saldo anterior.
+  if not context.day_flow then context.economy:spend_money(context.economy:get_money()) end
   self.sub_estado = CasinoStateMachine.new({
     blackjack = Blackjack,
     poker = Poker,
@@ -138,8 +146,10 @@ function casino:enter(context)
   self.sub_estado:enter(context)
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
-  self.fotos = cargar_fotos()
-  self.mapa = dibujar_mapa(self.fuente, self.fotos)
+  local ok, arte = pcall(love.graphics.newImage, Plano.arte.ruta)
+  self.arte = ok and arte or nil
+  self.fotos = cargar_fotos(self.arte ~= nil)
+  self.mapa = dibujar_mapa(self.fuente, self.fotos, self.arte)
   self.interactuables = {}
   local poligonos = { Plano.suelo }
   for _, objeto in ipairs(Plano.objetos) do
@@ -174,6 +184,7 @@ function casino:leave()
   end
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
+  self.arte = nil
   self.jornada, self.historial = nil
   self.decision_tomada, self.limite_pendiente = nil, nil
 end
@@ -223,6 +234,7 @@ function casino:ofrecer_otro_bloque()
       self.context.time_of_day = NOCHE
       self:anotar("continuar")
     else
+      if self.context.story then self.context.time_of_day = 1 end
       self:anotar("terminar")
     end
     -- Permite volver a usar la puerta aunque la decision ocurra dentro de su zona.
@@ -345,13 +357,13 @@ function casino:draw()
   love.graphics.draw(self.mapa)
   for objeto, imagen in pairs(self.fotos) do
     if not self.jugador:detras_de(objeto) then
-      dibujar_mesa(objeto, imagen)
+      dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
   dibujar_jugador(self.jugador)
   for objeto, imagen in pairs(self.fotos) do
     if self.jugador:detras_de(objeto) then
-      dibujar_mesa(objeto, imagen)
+      dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
   if self.cercano and not self.dialogo then

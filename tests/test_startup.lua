@@ -11,8 +11,8 @@ local machine = assert(loadfile("src/state_machine.lua"))()
 package.loaded["src/state_machine"] = machine
 local Game = assert(loadfile("src/game.lua"))()
 Game.load()
-assert(machine.current_name == "casa" and entered[1] == "src/states/casa" and #entered == 1,
-  "la partida empieza en casa sin abrir el casino ni blackjack")
+assert(machine.current_name == "animacion" and entered[1] == "src/states/animacion" and #entered == 1,
+  "la partida empieza con el prologo, sin abrir el casino ni blackjack")
 assert(Game.context.time_of_day == 0, "la partida empieza de dia")
 assert(Game.context.economy:get_money() == 10, "la partida entrega capital inicial jugable")
 for _, path in ipairs(paths) do package.loaded[path] = originals[path] end
