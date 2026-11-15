@@ -33,4 +33,12 @@ Si es tu primera vez en el proyecto, lee estos documentos en orden:
 
 ## Estado actual
 
-`transicion` es el estado inicial actual y contiene la demostración del sistema de diálogo ramificado. Los estados `casa`, `casino` y `animacion` siguen preparados para ser desarrollados cuando se defina el diseño final del juego.
+El juego comienza de día en `casa`. Su puerta sale a `transicion`, donde puedes caminar con **A / D** y hacer clic izquierdo en la puerta de la casa (extremo izquierdo) o del casino (extremo derecho). También puedes pulsar sus etiquetas visibles, «Entrar a casa» y «Entrar al casino». Las puertas se resaltan al pasar el cursor sobre ellas; no se pueden usar mientras hay un diálogo abierto.
+
+La hora se conserva en `context.time_of_day`: `0` = mañana, `1` = tarde, `2` = noche. Al entrar a casa de noche se utiliza `assets/casa/fondo_noche.png`; de día se mantiene el fondo original. Al salir de casa o del casino, el personaje reaparece junto a la entrada correspondiente de la calle.
+
+En el casino debes completar una primera tanda de **3 juegos** antes de salir. Se usa el contador existente: cada giro de ruleta y cada sesión completa de póker cuentan como una jugada. Al terminar el tercer juego, confirma el aviso para volver al salón; allí eliges si quieres jugar **3 más**. Usa **↑ / ↓** para elegir y **Z / Enter** para confirmar. Si rechazas, puedes salir de día. Si aceptas, se activa la noche y debes llegar a **6 juegos en total** antes de salir. Cambiar de mesa no reinicia el contador. Los avisos esperan a que termine el resultado del juego actual, sin interrumpir su pago. El blackjack sigue siendo un subestado provisional y todavía no registra juegos.
+
+Las pruebas se ejecutan con `lua tests/run.lua`. `tests/test_transition_doors.lua` cubre las puertas, la cámara, los límites de movimiento y el fondo de la casa según la hora.
+
+Salir y volver al casino no reinicia el contador, el cansancio ni la decisión de jugar tres o seis juegos. Estos datos permanecen en el progreso de la partida; empezar una partida nueva los reinicia. Si ya completaste el límite elegido, las mesas siguen cerradas al volver. En póker debes terminar un juego completo de **3 manos** antes de salir, tanto con **Esc** como con **LEAVE**, para evitar cambiar las cartas abandonando y entrando de nuevo.

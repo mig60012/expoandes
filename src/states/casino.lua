@@ -19,8 +19,8 @@ local TAMANO_LETRA = 18
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
-local JUGADAS_POR_DIA, CANSANCIO = 6, 0.08
-local TARDE, NOCHE = 1, 2
+local JUGADAS_POR_BLOQUE, CANSANCIO = 3, 0.08
+local NOCHE = 2
 local DINERO_PRUEBA = 3
 
 local PISO = { 0.88, 0.88, 0.88 }
@@ -164,8 +164,12 @@ function casino:enter(context)
     poligonos = poligonos,
   })
   self.camara = Camara(self.jugador.x, self.jugador.y, 1)
-  self.jornada = Jornada.new({ maximo = JUGADAS_POR_DIA, cansancio = CANSANCIO })
-  context.progress:set_value("casino_games_today", 0)
+  local extra = context.progress:get_flag("casino_extra_games_accepted") == true
+  self.jornada = Jornada.new({ maximo = JUGADAS_POR_BLOQUE * (extra and 2 or 1), cansancio = CANSANCIO })
+  self.jornada.jugadas = context.progress:get_value("casino_games_today") or 0
+  self.decision_tomada = context.progress:get_flag("casino_decision_made") == true
+  self.limite_pendiente = self.jornada:completa() and not self.decision_tomada
+  self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
   self.historial = {}
   self:encuadrar()
   self:anotar("entrar")
@@ -178,29 +182,75 @@ function casino:leave()
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
   self.jornada, self.historial = nil
+  self.decision_tomada, self.limite_pendiente = nil, nil
 end
 
 function casino:anotar(...)
   self.historial[#self.historial + 1] = table.concat({ ... }, " ")
 end
 
-function casino:abrir(nodo)
+function casino:puede_salir()
+  return self.jornada:completa() and self.decision_tomada and not self.limite_pendiente
+end
+
+function casino:abrir(nodo, al_terminar)
   local dialogo = Dialogue.new({ start = "inicio", nodes = { inicio = nodo } }, self.context)
   self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
-    if opcion and opcion.salir then
-      self.context.time_of_day = self.jornada:completa() and NOCHE or TARDE
+    if al_terminar then
+      al_terminar(opcion)
+    elseif opcion and opcion.salir and self:puede_salir() then
       self:anotar("salir")
       self.context.state_machine:switch("transicion")
     end
   end)
 end
 
+function casino:ofrecer_otro_bloque()
+  self:abrir({ speaker = "Casino", text = "Ya jugaste 3 juegos. ¿Quieres jugar 3 más? Si aceptas, debes completarlos antes de salir.",
+    choices = { { text = "Sí, jugar 3 más", continuar = true }, { text = "No, terminar por hoy" } },
+  }, function(opcion)
+    self.decision_tomada = true
+    self.context.progress:set_flag("casino_decision_made", true)
+    self.context.progress:set_flag("casino_extra_games_accepted", opcion and opcion.continuar == true or false)
+    if opcion and opcion.continuar then
+      self.jornada.maximo = JUGADAS_POR_BLOQUE * 2
+      self.context.time_of_day = NOCHE
+      self:anotar("continuar")
+    else
+      self:anotar("terminar")
+    end
+    -- Permite volver a usar la puerta aunque la decision ocurra dentro de su zona.
+    self.en_puerta = false
+  end)
+end
+
+function casino:revisar_limite()
+  if not self.limite_pendiente or self.dialogo then return end
+  local mesa = self.sub_estado.current
+  -- La ruleta cuenta al apostar: hay que esperar al resultado y al pago.
+  if mesa and mesa.listo_para_salir and not mesa:listo_para_salir() then return end
+  if mesa then
+    self:abrir({ speaker = "Casino", text = "Completaste " .. self.jornada.jugadas .. " juegos. Debes volver al salón.",
+      choices = { { text = "Volver al salón" } },
+    }, function()
+      self.sub_estado:switch(nil)
+      self.limite_pendiente = false
+      if not self.decision_tomada then self:ofrecer_otro_bloque() end
+    end)
+  else
+    self.limite_pendiente = false
+    if not self.decision_tomada then self:ofrecer_otro_bloque() end
+  end
+end
+
 function casino:jugada(mesa, monto)
+  if self.jornada:completa() then return end
   self:anotar("apuesta", mesa, monto)
   self.jornada:registrar_jugada()
   self.context.progress:set_value("casino_games_today", self.jornada.jugadas)
   self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
+  if self.jornada:completa() then self.limite_pendiente = true end
 end
 
 function casino:sentarse(mesa)
@@ -228,13 +278,17 @@ function casino:sentarse(mesa)
 end
 
 function casino:keypressed(tecla, scancode, isrepeat)
-  if self.sub_estado.current then
-    self.sub_estado:keypressed(tecla, scancode, isrepeat)
-    return
-  end
+  self:revisar_limite()
   if self.dialogo then
     self.dialogo:keypressed(tecla)
-  elseif tecla == "f1" then
+    return
+  end
+  if self.sub_estado.current then
+    self.sub_estado:keypressed(tecla, scancode, isrepeat)
+    self:revisar_limite()
+    return
+  end
+  if tecla == "f1" then
     self.context.economy:add_money(DINERO_PRUEBA)
     self:anotar("dinero_prueba", DINERO_PRUEBA)
   elseif self.cercano and (tecla == "z" or tecla == "return") then
@@ -243,8 +297,11 @@ function casino:keypressed(tecla, scancode, isrepeat)
 end
 
 function casino:update(dt)
+  self:revisar_limite()
+  if self.dialogo then return end
   if self.sub_estado.current then
     self.sub_estado:update(dt)
+    self:revisar_limite()
     return
   end
   if not self.dialogo then
@@ -255,7 +312,11 @@ function casino:update(dt)
     self.cercano = self.jugador:mas_cercano(self.interactuables, Plano.jugador.alcance)
     local en_puerta = Colision.dentro(self.jugador.x, self.jugador.y, Plano.puerta.zona)
     if en_puerta and not self.en_puerta then
-      self:abrir({ speaker = "Puerta", text = "¿Quieres salir del casino?", choices = { { text = "Sí", salir = true }, { text = "No" } } })
+      if self:puede_salir() then
+        self:abrir({ speaker = "Puerta", text = "¿Quieres salir del casino?", choices = { { text = "Sí", salir = true }, { text = "No" } } })
+      else
+        self:abrir({ speaker = "Puerta", text = "Debes completar " .. (self.jornada.maximo - self.jornada.jugadas) .. " juegos más antes de salir.", ending = true })
+      end
     end
     self.en_puerta = en_puerta
   end
@@ -265,6 +326,10 @@ end
 function casino:draw()
   if self.sub_estado.current then
     self.sub_estado:draw()
+    if self.dialogo then
+      local ancho, alto = love.graphics.getDimensions()
+      self.dialogo:draw(ancho, alto, self.fuente_dialogo)
+    end
     return
   end
   love.graphics.push("all")
@@ -296,14 +361,17 @@ function casino:draw()
 end
 
 function casino:keyreleased(tecla, scancode)
-  if self.sub_estado.current then
+  if self.sub_estado.current and not self.dialogo then
     self.sub_estado:keyreleased(tecla, scancode)
   end
 end
 
 function casino:mousepressed(x, y, button, istouch, presses)
+  self:revisar_limite()
+  if self.dialogo then return end
   if self.sub_estado.current then
     self.sub_estado:mousepressed(x, y, button, istouch, presses)
+    self:revisar_limite()
   end
 end
 

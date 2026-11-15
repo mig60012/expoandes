@@ -39,6 +39,7 @@ local COLOR_PISO = { 0.45, 0.30, 0.20 }
 -- ============================================================
 local RUTAS_SPRITES = {
   fondo       = "assets/casa/fondo.png",       -- 1920x1080 (16:9), la casa completa (de dia)
+  fondo_noche = "assets/casa/fondo_noche.png",
   cursor      = "assets/casa/cursor.png",      -- el "personaje" (reemplaza al mouse)
   celular     = "assets/casa/celular.png",
   -- La puerta, el maletin y la foto de la hija YA ESTAN DIBUJADOS en el fondo,
@@ -116,6 +117,9 @@ function Casa:enter(context)
   for nombre, ruta in pairs(RUTAS_SPRITES) do
     self.sprites[nombre] = cargar_sprite(ruta)
   end
+  if context.time_of_day and context.time_of_day >= 2 then
+    self.sprites.fondo = self.sprites.fondo_noche or self.sprites.fondo
+  end
 
   -- Posicion del "personaje" (el mouse), en coordenadas virtuales
   self.mx, self.my = self:a_virtual(love.mouse.getPosition())
@@ -150,13 +154,12 @@ function Casa:enter(context)
     },
     {
       -- Puerta: al fondo, en el centro-derecha de la pared
-      id = "puerta", nombre = "Puerta (ir al casino)",
+      id = "puerta", nombre = "Puerta (salir a la calle)",
       en_fondo = true,
       x = 693, y = 83, w = 206, h = 354,
       color = { 0.50, 0.30, 0.15 },
       accion = function(casa)
-        -- Cambia de estado: sale de la casa y va al casino
-        casa.context.state_machine:switch("casino")
+        casa.context.state_machine:switch("transicion")
       end,
     },
     {
@@ -504,6 +507,7 @@ end
 -- ============================================================
 function Casa:mousepressed(px, py, button)
   if button ~= 1 then return end -- solo click izquierdo
+  self:ajustar_escala()
 
   -- El click llega en pixeles de la ventana: se pasa a coordenadas virtuales
   local x, y = self:a_virtual(px, py)
@@ -533,8 +537,11 @@ function Casa:mousepressed(px, py, button)
   end
 
   -- Capa 4: objetos de la casa
-  if self.hover and self.hover.accion then
-    self.hover.accion(self, self.context)
+  for _, obj in ipairs(self.objetos) do
+    if punto_en_rect(x, y, obj) and obj.accion then
+      obj.accion(self, self.context)
+      return
+    end
   end
 end
 
