@@ -2,6 +2,7 @@ local FinalEvaluation = require("src/systems/final_evaluation")
 local FinalData = require("src/data/dialogues/finals")
 local Script = require("src/data/dialogues/historia")
 local View = require("src/ui/story_dialogue")
+local Mando = require("src/systems/mando")
 
 local Finales = {}
 
@@ -55,7 +56,7 @@ function Finales:draw()
   love.graphics.printf(self.data.title, 40, h * 0.28, w - 80, "center")
   love.graphics.setFont(self.small_font)
   love.graphics.printf(self.data.text, 100, h * 0.46, w - 200, "center")
-  love.graphics.printf("Pulsa R para comenzar una nueva partida", 40, h * 0.78, w - 80, "center")
+  love.graphics.printf(Mando.boton("reiniciar") .. " · Nueva partida", 40, h * 0.78, w - 80, "center")
 end
 
 return Finales

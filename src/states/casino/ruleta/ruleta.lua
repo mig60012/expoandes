@@ -4,6 +4,7 @@ local Apuestas = require(RUTA .. "apuestas")
 local Giro = require(RUTA .. "giro")
 local Vista = require(RUTA .. "vista")
 local Audio = require("src/systems/audio")
+local Mando = require("src/systems/mando")
 
 local Ruleta = {}
 
@@ -208,6 +209,7 @@ function Ruleta:draw()
     acercamiento = 1 + 0.06 * avance,
     gano = self.gano,
     explicacion = self.explicacion,
+    ayuda = Mando.boton("volver") .. " · Salir",
   }, self.recursos)
 end
 

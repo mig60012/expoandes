@@ -208,7 +208,7 @@ local function mesa(d, r)
   color(ORO)
   centrado(r.titulo, "RULETA", ANCHO / 2, 100)
   color(CREMA, 0.75)
-  centrado(r.texto, "Elige tu apuesta: haz clic en el paño o en una opción", ANCHO / 2, 160)
+  centrado(r.texto, "Elige tu apuesta", ANCHO / 2, 160)
   for _, z in ipairs(r.zonas.mesa) do
     local elegida = d.apuesta and z.apuesta == d.apuesta.nombre
     local encima = d.encima == z
@@ -270,7 +270,7 @@ local function mesa(d, r)
   love.graphics.setFont(r.chica)
   love.graphics.print(d.mensaje or "", PX, 905)
   color(CREMA, 0.5)
-  centrado(r.pequena, "Clic: elige apuesta      Apostar: elige el monto      Esc: salir      F1: +3 M", ANCHO / 2, 985)
+  centrado(r.pequena, d.ayuda or "", ANCHO / 2, 985)
 end
 
 local function ventana(d, x, y, w, h)
@@ -307,8 +307,6 @@ local function monto(d, r)
   love.graphics.setFont(r.pequena)
   love.graphics.print(d.minimo .. " M", BARRA_X, BARRA_Y + 24)
   love.graphics.printf(d.maximo .. " M", BARRA_X + BARRA_ANCHO - 200, BARRA_Y + 24, 200, "right")
-  color(CREMA, 0.45)
-  centrado(r.chica, "Arrastra el círculo o usa las flechas", ANCHO / 2, BARRA_Y + 42)
   for _, z in ipairs(r.zonas.monto) do
     if z.texto then
       boton(z, d, r)
