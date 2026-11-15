@@ -8,12 +8,17 @@ local TOLERANCIA = 1
 local CELDA = 12
 local DIRECCIONES = { { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } }
 
-local poligonos, interactuables = { Plano.suelo }, {}
+local poligonos, interactuables, solidos = { Plano.suelo }, {}, {}
 for _, objeto in ipairs(Plano.objetos) do
   poligonos[#poligonos + 1] = objeto.choque
+  solidos[#solidos + 1] = objeto
   if objeto.interaccion then
     interactuables[#interactuables + 1] = objeto
   end
+end
+for _, obstaculo in ipairs(Plano.obstaculos or {}) do
+  poligonos[#poligonos + 1] = obstaculo.choque
+  solidos[#solidos + 1] = obstaculo
 end
 
 local function caminante(x, y)
@@ -37,7 +42,7 @@ end
 
 local function revisar(x, y, que)
   assert(Colision.dentro(x, y, Plano.suelo), que .. ": salio del piso en " .. x .. "," .. y)
-  for _, objeto in ipairs(Plano.objetos) do
+  for _, objeto in ipairs(solidos) do
     assert(not Colision.dentro(x, y, objeto.choque), que .. ": se metio en " .. objeto.nombre)
   end
   assert(holgura(x, y) >= RADIO - TOLERANCIA, que .. ": se pego de mas en " .. x .. "," .. y)
@@ -66,7 +71,7 @@ while cabeza <= #cola do
     end
   end
 end
-assert(#cola > 5000, "el salon se puede recorrer")
+assert(#cola > 4000, "el salon se puede recorrer")
 
 local en_puerta, elegibles = 0, {}
 for _, punto in ipairs(cola) do
@@ -99,7 +104,7 @@ end
 for x = 24, Plano.ancho - 24, 16 do
   for y = 400, Plano.alto - 12, 8 do
     local libre = Colision.dentro(x, y, Plano.suelo) and holgura(x, y) >= RADIO + 6
-    for _, objeto in ipairs(Plano.objetos) do
+    for _, objeto in ipairs(solidos) do
       libre = libre and not Colision.dentro(x, y, objeto.choque)
     end
     if libre then

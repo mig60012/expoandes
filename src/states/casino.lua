@@ -63,7 +63,7 @@ end
 
 local function capa_de_mesa(objeto, mapa)
   local vertices = {}
-  for _, triangulo in ipairs(love.math.triangulate(objeto.choque)) do
+  for _, triangulo in ipairs(love.math.triangulate(objeto.silueta or objeto.choque)) do
     for i = 1, #triangulo, 2 do
       local x, y = triangulo[i], triangulo[i + 1]
       vertices[#vertices + 1] = { x, y, x / Plano.ancho, y / Plano.alto }
@@ -72,6 +72,29 @@ local function capa_de_mesa(objeto, mapa)
   local malla = love.graphics.newMesh(vertices, "triangles", "static")
   if malla then malla:setTexture(mapa) end
   return malla
+end
+
+local function base_mas_baja(poligono, desde, hasta)
+  local maximo = -math.huge
+  local j = #poligono - 1
+  for i = 1, #poligono, 2 do
+    local ax, ay, bx, by = poligono[j], poligono[j + 1], poligono[i], poligono[i + 1]
+    local izquierda, derecha = math.max(math.min(ax, bx), desde), math.min(math.max(ax, bx), hasta)
+    if izquierda <= derecha then
+      for _, x in ipairs({ izquierda, derecha }) do
+        local y = ax == bx and math.max(ay, by) or ay + (by - ay) * (x - ax) / (bx - ax)
+        maximo = math.max(maximo, y)
+      end
+    end
+    j = i
+  end
+  return maximo
+end
+
+local function tapa_al_jugador(objeto, jugador)
+  if not objeto.silueta then return jugador:detras_de(objeto) end
+  local medio = Plano.jugador.alto * 0.18
+  return jugador.y < base_mas_baja(objeto.silueta, jugador.x - medio, jugador.x + medio)
 end
 
 local function dibujar_mesa(objeto, imagen, con_arte)
@@ -245,6 +268,11 @@ function casino:enter(context)
     for _, objeto in ipairs(Plano.objetos) do
       self.fotos[objeto] = capa_de_mesa(objeto, self.mapa)
     end
+    for _, obstaculo in ipairs(Plano.obstaculos or {}) do
+      if obstaculo.silueta then
+        self.fotos[obstaculo] = capa_de_mesa(obstaculo, self.mapa)
+      end
+    end
   end
   self.interactuables = {}
   local poligonos = { Plano.suelo }
@@ -253,6 +281,9 @@ function casino:enter(context)
     if objeto.interaccion then
       self.interactuables[#self.interactuables + 1] = objeto
     end
+  end
+  for _, obstaculo in ipairs(Plano.obstaculos or {}) do
+    poligonos[#poligonos + 1] = obstaculo.choque
   end
   self.jugador = Caminante.new({
     x = Plano.inicio.x,
@@ -456,13 +487,13 @@ function casino:draw()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(self.mapa)
   for objeto, imagen in pairs(self.fotos) do
-    if not self.jugador:detras_de(objeto) then
+    if not tapa_al_jugador(objeto, self.jugador) then
       dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
   dibujar_jugador(self.jugador)
   for objeto, imagen in pairs(self.fotos) do
-    if self.jugador:detras_de(objeto) then
+    if tapa_al_jugador(objeto, self.jugador) then
       dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
