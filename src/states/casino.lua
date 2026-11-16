@@ -21,6 +21,10 @@ local CARPETA_FOTOS = "src/states/casino/assets/"
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local JUGADAS_POR_BLOQUE, CANSANCIO = 3, 0.08
 local NOCHE = 2
+local FONDO_CASINO = "assets/casino/fondo.png"
+local FILTRO_MULTIPLICAR = "assets/casino/filtro_1_multiply.png"
+local FILTRO_ADITIVO_1 = "assets/casino/filtro_2_add.png"
+local FILTRO_ADITIVO_2 = "assets/casino/filtro_3_add.png"
 
 local PISO = { 0.85, 0.85, 0.85 }
 local FIGURA = { 0.8, 0.8, 0.8 }
@@ -299,6 +303,8 @@ function casino:enter(context)
   self.jornada.jugadas = context.progress:get_value("casino_games_today") or 0
   self.decision_tomada = context.progress:get_flag("casino_decision_made") == true
   self.limite_pendiente = self.jornada:completa() and not self.decision_tomada
+  self.dialogo_no_bloqueante = false
+  self.sin_saldo_en_mesa = false
   self.jugador.velocidad = Plano.jugador.velocidad * self.jornada:factor_velocidad()
   self.historial = {}
   self:encuadrar()
@@ -311,7 +317,8 @@ function casino:leave()
   end
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
-  self.arte = nil
+  self.dialogo_no_bloqueante, self.sin_saldo_en_mesa = nil, nil
+  self.arte, self.filtros = nil, nil
   self.jornada, self.historial = nil
   self.decision_tomada, self.limite_pendiente = nil, nil
 end
@@ -321,7 +328,10 @@ function casino:anotar(...)
 end
 
 function casino:puede_salir()
-  return self.jornada:completa() and self.decision_tomada and not self.limite_pendiente
+  local day_flow = self.context.day_flow
+  local sin_saldo = day_flow and day_flow:is_active()
+    and (self.context.economy:get_money() < MINIMOS.ruleta or self.sin_saldo_en_mesa)
+  return sin_saldo or (self.jornada:completa() and self.decision_tomada and not self.limite_pendiente)
 end
 
 function casino:usa_cursor()
@@ -329,15 +339,22 @@ function casino:usa_cursor()
 end
 
 function casino:abrir(nodo, al_terminar)
+  self.dialogo_no_bloqueante = false
   local dialogo = Dialogue.new({ start = "inicio", nodes = { inicio = nodo } }, self.context)
   self.dialogo = VistaDialogo.new(dialogo, function(opcion)
     self.dialogo = nil
+    self.dialogo_no_bloqueante = false
     if al_terminar then
       al_terminar(opcion)
     elseif opcion and opcion.salir and self:puede_salir() then
       local day_flow = self.context.day_flow
       if day_flow and day_flow:is_active() then
-        local recorded, error_message = day_flow:record_games(self.jornada.jugadas)
+        local games = self.jornada.jugadas
+        if (self.context.economy:get_money() < MINIMOS.ruleta or self.sin_saldo_en_mesa)
+            and games ~= 3 and games ~= 6 then
+          games = self.jornada.maximo
+        end
+        local recorded, error_message = day_flow:record_games(games)
         if not recorded then
           self:abrir({
             speaker = "Sistema",
@@ -395,7 +412,8 @@ function casino:revisar_limite()
   end
 end
 
-function casino:jugada(mesa, monto)
+function casino:jugada(mesa, monto, sin_saldo)
+  if sin_saldo then self.sin_saldo_en_mesa = true end
   if self.jornada:completa() then return end
   self:anotar("apuesta", mesa, monto)
   self.jornada:registrar_jugada()
@@ -422,8 +440,8 @@ function casino:sentarse(mesa)
     puede_jugar = function()
       return not self.jornada:completa()
     end,
-    al_jugar = function(monto)
-      self:jugada(mesa.interaccion, monto)
+    al_jugar = function(monto, sin_saldo)
+      self:jugada(mesa.interaccion, monto, sin_saldo)
     end,
   })
 end
@@ -431,8 +449,13 @@ end
 function casino:keypressed(tecla, scancode, isrepeat)
   self:revisar_limite()
   if self.dialogo then
-    self.dialogo:keypressed(tecla)
-    return
+    if not self.dialogo_no_bloqueante then
+      self.dialogo:keypressed(tecla)
+      return
+    elseif tecla == "z" or tecla == "return" then
+      self.dialogo:keypressed(tecla)
+      if self.dialogo then return end
+    end
   end
   if self.sub_estado.current then
     self.sub_estado:keypressed(tecla, scancode, isrepeat)
@@ -446,13 +469,13 @@ end
 
 function casino:update(dt)
   self:revisar_limite()
-  if self.dialogo then return end
+  if self.dialogo and not self.dialogo_no_bloqueante then return end
   if self.sub_estado.current then
     self.sub_estado:update(dt)
     self:revisar_limite()
     return
   end
-  if not self.dialogo then
+  if not self.dialogo or self.dialogo_no_bloqueante then
     local tecla = love.keyboard.isDown
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
@@ -464,9 +487,14 @@ function casino:update(dt)
         self:abrir({ speaker = "Puerta", text = "¿Quieres salir del casino?", choices = { { text = "Sí", salir = true }, { text = "No" } } })
       else
         self:abrir({ speaker = "Puerta", text = "Debes completar " .. (self.jornada.maximo - self.jornada.jugadas) .. " juegos más antes de salir.", ending = true })
+        self.dialogo_no_bloqueante = true
       end
     end
     self.en_puerta = en_puerta
+    if self.dialogo_no_bloqueante and not en_puerta then
+      self.dialogo = nil
+      self.dialogo_no_bloqueante = false
+    end
   end
   self:encuadrar()
 end
