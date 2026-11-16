@@ -14,7 +14,7 @@
 --   1. cinematica  (pantalla negra con texto, click para avanzar)
 --   2. dialogo     (cuadro de texto, click para cerrar)
 --   3. panel       (infraestructura legada; el celular ya no tiene hotspot)
---   4. objetos     (puerta, foto; maletin conservado pero inactivo)
+--   4. objetos     (puerta, foto y maletin)
 --
 -- Guardar como: src/states/casa.lua
 --]]
@@ -62,6 +62,37 @@ local function punto_en_rect(px, py, r)
   return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h
 end
 
+local function dia_actual(context)
+  local day_flow = context.day_flow
+  if day_flow and day_flow.get_day then return day_flow:get_day() end
+  if context.progress then return context.progress:get_value("current_day") end
+  return context.time_of_day
+end
+
+local function tiene_poco_dinero(context)
+  return context.economy ~= nil and context.economy:get_money() <= 4
+end
+
+local function maletin_disponible(casa, today)
+  local day_flow = casa.context.day_flow
+  return tiene_poco_dinero(casa.context)
+    and casa.dia_trabajado ~= today
+    and not (day_flow and day_flow.decisions and day_flow.decisions.worked)
+end
+
+local function texto_hover(context, objeto)
+  local dinero = context.economy and context.economy:get_money()
+  if objeto.id == "puerta" then
+    if dinero == 0 then
+      return "No tienes dinero, ve a trabajar (haz clic en el maletín)"
+    end
+    return "Puedes ir al casino o ir a trabajar (haz clic en el maletín)"
+  elseif objeto.id == "maletin" and dinero ~= nil and dinero <= 4 then
+    return "Tienes poco dinero, trabaja para ganar más"
+  end
+  return objeto.nombre
+end
+
 -- ============================================================
 -- ESCALA (resolucion virtual -> ventana real)
 -- Solo recalcula cuando cambia el tamano de la ventana, no en cada frame.
@@ -105,6 +136,16 @@ end
 -- ============================================================
 function Casa:enter(context)
   self.context = context
+
+  if context.story and context.rules then
+    context.rules.work_income = 3
+  end
+
+  local day_flow = context.day_flow
+  local today = dia_actual(context)
+  if day_flow and day_flow.decisions and day_flow.decisions.worked then
+    self.dia_trabajado = today
+  end
 
   -- El mouse del sistema se oculta: ahora el mouse ES el personaje
   love.mouse.setVisible(false)
@@ -178,7 +219,7 @@ function Casa:enter(context)
     {
       -- Maletin: a la izquierda, colgado/apoyado contra la pared
       id = "maletin",
-      activo = false, -- Conservado para futuras iteraciones, sin hover ni clic.
+      activo = maletin_disponible(self, today),
       nombre = "Maletin (ir al trabajo)",
       en_fondo = true,
       x = 0,
@@ -187,8 +228,7 @@ function Casa:enter(context)
       h = 315,
       color = { 0.25, 0.20, 0.15 },
       accion = function(casa)
-        if casa.context.story then casa.context.story:request_work(casa)
-        else casa.context.state_machine:switch("trabajo") end
+        if tiene_poco_dinero(casa.context) then casa:ir_al_trabajo() end
       end,
     },
   }
@@ -227,6 +267,33 @@ function Casa:leave()
   love.mouse.setGrabbed(false)
 end
 
+function Casa:ir_al_trabajo()
+  local today = dia_actual(self.context)
+  local day_flow = self.context.day_flow
+  if self.dia_trabajado == today
+      or (day_flow and day_flow.decisions and day_flow.decisions.worked) then
+    return false
+  end
+
+  if self.context.story and day_flow and day_flow:is_active() then
+    local day = day_flow:get_day()
+    if (day == 1 or day == 2 or day == 3) and not day_flow.decisions.games then
+      day_flow:record_games(3)
+    end
+    if day == 3 and type(day_flow.decisions.car_sold) ~= "boolean" then
+      day_flow.decisions.car_sold = false
+      day_flow.decisions.wife_knows_about_car = false
+      self.context.progress:set_flag("car_sold", false)
+    end
+    self.context.rules.work_income = 0
+  end
+
+  self.dia_trabajado = today
+  self.context.economy:add_money(3)
+  self.context.state_machine:switch("trabajo")
+  return true
+end
+
 -- ============================================================
 -- DIALOGO
 -- ============================================================
@@ -240,7 +307,7 @@ function Casa:iniciar_decision_regreso()
   self.dialogue = DialogueView.new(self.context, "day_1_return.lua", function(view, choice)
     self.dialogue = nil
     if choice and choice.action == "work" then
-      self.context.state_machine:switch("trabajo")
+      self:ir_al_trabajo()
     elseif choice and choice.action == "family" then
       local finished = self.context.day_flow:record_return_home()
       if finished then
@@ -289,7 +356,7 @@ function Casa:iniciar_dialogo_dia5()
     local flow = self.context.day_flow
     flow:mark_morning_complete()
     if choice and choice.action == "work" then
-      self.context.state_machine:switch("trabajo")
+      self:ir_al_trabajo()
     elseif choice and choice.action == "casino" then
       self.context.state_machine:switch("transicion", true)
     end
@@ -423,6 +490,13 @@ function Casa:update(dt)
   self.hover = nil
   self.hover_item = nil
 
+  local today = dia_actual(self.context)
+  for _, obj in ipairs(self.objetos or {}) do
+    if obj.id == "maletin" then
+      obj.activo = maletin_disponible(self, today)
+    end
+  end
+
   -- Con una cinematica o un dialogo abierto no se detecta nada mas
   if self.cinematica or self.dialogue then
     if self.dialogue then self.dialogue:update(dt) end
@@ -503,13 +577,14 @@ function Casa:draw()
   -- 3) Resaltado y etiqueta del objeto bajo el mouse
   if self.hover then
     local h = self.hover
+    local label = texto_hover(self.context, h)
     love.graphics.setColor(1, 1, 0.2)
     love.graphics.setLineWidth(3)
     love.graphics.rectangle("line", h.x, h.y, h.w, h.h)
     love.graphics.setLineWidth(1)
 
     love.graphics.setFont(self.fuente)
-    local tw = self.fuente:getWidth(h.nombre) + 16
+    local tw = self.fuente:getWidth(label) + 16
     local th = self.fuente:getHeight() + 8
 
     -- Posicion por defecto: abajo a la derecha del cursor
@@ -528,7 +603,7 @@ function Casa:draw()
     love.graphics.setColor(0, 0, 0, 0.8)
     love.graphics.rectangle("fill", tx, ty, tw, th, 4, 4)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print(h.nombre, tx + 8, ty + 4)
+    love.graphics.print(label, tx + 8, ty + 4)
   end
 
   -- 4) Panel del celular
