@@ -299,14 +299,17 @@ function PokerGame:apply_action(player_or_index, decision, already_paid)
     available = available + amount
   end
 
+  -- Un call siempre aporta exactamente lo que se puede cubrir. Si la apuesta
+  -- rival supera el stack, se convierte automaticamente en un all-in corto.
+  if action == "call" then
+    amount = math.min(amount_to_call, available)
+  end
+
   if action == "check" and amount_to_call > 0 then
     return false, "cannot check while facing a bet"
   end
   if (action == "check" or action == "fold") and amount ~= 0 then
     return false, "this action cannot include a wager"
-  end
-  if action == "call" and amount > math.min(amount_to_call, available) then
-    return false, "call exceeds available stack"
   end
   if action == "call" and amount_to_call == 0 then
     return false, "use check when there is nothing to call"

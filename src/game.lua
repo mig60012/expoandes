@@ -6,6 +6,7 @@ local Economy = require("src/systems/economy")
 local Progress = require("src/systems/progress")
 local DayFlow = require("src/systems/day_flow")
 local Story = require("src/story")
+local Hud = require("src/ui/hud")
 local StoryTest = require("src/states/story_test")
 
 local Game = {}
@@ -54,13 +55,14 @@ function Game.load()
     }),
     time_of_day = 0, -- 0 = mañana, 1 = tarde, 2 = noche
     rules = {
-      -- Valores narrativos configurables: el guion no fija estas cantidades.
-      family_points_threshold = 2,
-      work_debt_percentage = 20,
-      mortgage_debt_percentage = 80,
-      daughter_savings_debt_percentage = 40,
-      car_debt_percentage = 20,
+      -- Todos los importes estan expresados en millones.
+      debt_total = 125,
+      family_points_threshold = 5,
+      car_sale_value = 10,
+      house_sale_value = 15,
+      daughter_savings_value = 10,
       work_income = 5,
+      poker_chips_per_million = 100,
     },
     state_machine = StateMachine,
     story_test = StoryTest.enabled(),
@@ -79,6 +81,7 @@ end
 
 function Game.draw()
   StateMachine:draw()
+  Hud.draw(Game.context, StateMachine.current_name)
 end
 
 function Game.keypressed(key, scancode, isrepeat)

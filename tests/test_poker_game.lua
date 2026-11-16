@@ -35,4 +35,17 @@ assert(ok and game.status == "showdown", "el bot debe ganar cuando el jugador se
 assert(game.winners[1].name == "Bot", "el bot debe ser el ganador")
 assert(bot.money > 0, "el ganador debe recibir el bote")
 
+local short = PokerGame:new({
+  { name = "Short stack", stack = 20 },
+  { name = "Rival", stack = 100 },
+}, { small_blind = 0, big_blind = 0, min_raise = 10, auto_bots = false })
+short:start_hand({ {}, {} })
+short.current_bet = 50
+ok = short:apply_action(1, { action = "call", amount = 50 })
+assert(ok and short.players[1].stack == 0 and short.players[1].all_in,
+  "un call superior al stack coloca todas las fichas y marca all-in")
+assert(short.players[1].total_contribution == 20 and short.pot == 20
+  and short.players[1].last_action.amount == 20,
+  "el call corto nunca aporta mas fichas de las disponibles")
+
 print("test_poker_game: ok")

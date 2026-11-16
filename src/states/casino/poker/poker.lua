@@ -25,6 +25,7 @@ local DEAL_DELAY = 0.085
 -- Al terminar la ultima se te pide levantarte y la sesion cuenta como UNA jugada
 -- del dia en el casino.
 local MANOS_POR_SESION = 3
+local FICHAS_POR_MILLON = 100
 
 local SUIT_BY_NAME = {
   spades = 1,
@@ -194,10 +195,22 @@ function Poker:enter(context, machine, opciones)
   self.fuente_ui = love.graphics.newFont("assets/AntonSC-Regular.ttf", 20)
   self.fuente_boton = love.graphics.newFont("assets/AntonSC-Regular.ttf", 22)
   self.multiply_shader = crear_multiply_shader()
+  self.botones, self.particulas = {}, {}
+  self.buyin_min = self.opciones.minimo or 3
+  self.buyin_max = math.floor(context.economy:get_money())
+  self.buyin_value = self.buyin_min
+  self.buyin_mode, self.dragging_buyin = true, false
+  self.buyin_spent, self.cashed_out = nil, false
+  self.chips_per_million = (context.rules and context.rules.poker_chips_per_million) or FICHAS_POR_MILLON
+  self.input_lock = 0
+  self:actualizar_botones()
+end
+
+function Poker:crear_sesion(stack)
   self.cartas = Cards.new({ atlas_path = ATLAS })
   self.bots = crear_bots()
   self.game = PokerGame:new({
-    { name = "Jugador 1",       stack = DINERO_INICIAL_BOT },
+    { name = "Jugador 1",       stack = stack },
     { name = self.bots[1].name, controller = self.bots[1] },
     { name = self.bots[2].name, controller = self.bots[2] },
     { name = self.bots[3].name, controller = self.bots[3] },
@@ -212,12 +225,31 @@ function Poker:enter(context, machine, opciones)
       return Analysis.evaluate(hole_cards, board_cards)
     end,
   })
-  self.botones, self.particulas = {}, {}
   self.table_chips, self.pot_chips, self.folded_visuals = {}, {}, {}
   self.visual_pot = 0
   self.raise_value, self.raise_min, self.raise_max = nil, nil, nil
   self.dragging_raise, self.raise_mode, self.session_finished = false, false, false
   self:iniciar_mano()
+end
+
+function Poker:confirmar_compra()
+  if not self.buyin_mode then return false end
+  local amount = math.max(self.buyin_min, math.min(self.buyin_max, self.buyin_value))
+  if not self.context.economy:spend_money(amount) then return false end
+  self.buyin_value, self.buyin_spent = amount, amount
+  self.buyin_mode, self.dragging_buyin = false, false
+  self:crear_sesion(amount * self.chips_per_million)
+  return true
+end
+
+function Poker:liquidar_fichas()
+  if self.cashed_out or not self.buyin_spent then return 0 end
+  self.cashed_out = true
+  local chips = self.game and self.game.players[1].stack or 0
+  local money = chips / self.chips_per_million
+  self.context.economy:add_money(money)
+  self.cashout_money = money
+  return money
 end
 
 function Poker:iniciar_mano()
@@ -423,8 +455,12 @@ end
 function Poker:registrar_jugada_si_termino()
   if not self.session_finished or self.jugada_registrada then return end
   self.jugada_registrada = true
+  -- Al terminar la tercera mano, todas las fichas restantes vuelven a la
+  -- cuenta con la misma tasa usada en la compra. leave() conserva una segunda
+  -- llamada segura para cierres externos, pero cashed_out impide pagar dos veces.
+  self:liquidar_fichas()
   if self.opciones.al_jugar then
-    -- El poker usa sus propias fichas, no el dinero (M) del casino: monto 0.
+    -- La jornada registra una sesion, no cada movimiento interno de fichas.
     self.opciones.al_jugar(0)
   end
 end
@@ -487,7 +523,12 @@ end
 function Poker:actualizar_botones()
   local width, height = love.graphics.getDimensions()
   local definiciones = {}
-  if self.input_lock > 0 then
+  if self.buyin_mode then
+    definiciones = {
+      { label = "CANCEL", action = function() self.machine:switch(nil) end, color = { 0.22, 0.20, 0.20 } },
+      { label = "BUY CHIPS", action = function() self:confirmar_compra() end, color = { 0.47, 0.32, 0.14 } },
+    }
+  elseif self.input_lock > 0 then
     definiciones = {}
   elseif self.game:is_human_turn() and self.raise_mode then
     definiciones = {
@@ -497,6 +538,8 @@ function Poker:actualizar_botones()
   elseif self.game:is_human_turn() then
     local por_pagar = self.game:get_amount_to_call(self.game.players[1])
     local jugador = self.game.players[1]
+    local call_amount = math.min(por_pagar, jugador.stack)
+    local short_all_in = por_pagar > jugador.stack
     local minimo_raise = por_pagar + self.game.min_raise
     local puede_raise = not self.game.raise_used and jugador.stack >= minimo_raise
     self.raise_min, self.raise_max = minimo_raise, jugador.stack
@@ -508,7 +551,7 @@ function Poker:actualizar_botones()
     definiciones = {
       { label = "FOLD",                            action = function() self:accion_jugador("fold") end,  color = { 0.34, 0.10, 0.12 } },
       {
-        label = por_pagar > 0 and ("CALL  " .. por_pagar) or "CHECK",
+        label = por_pagar > 0 and ((short_all_in and "CALL ALL-IN  " or "CALL  ") .. call_amount) or "CHECK",
         action = function()
           self:accion_jugador(por_pagar > 0 and "call" or "check")
         end,
@@ -584,10 +627,15 @@ function Poker:emitir_particulas(x, y, color)
   end
 end
 
-function Poker:actualizar_raise_desde_mouse(x)
-  if not self.raise_min or not self.raise_max or self.raise_max < self.raise_min then return end
+function Poker:actualizar_slider_desde_mouse(x)
   local slider = self.slider
   local progreso = math.max(0, math.min(1, (x - (slider.x - slider.w / 2)) / slider.w))
+  if self.buyin_mode then
+    local valor = self.buyin_min + (self.buyin_max - self.buyin_min) * progreso
+    self.buyin_value = math.floor(valor + 0.5)
+    return
+  end
+  if not self.raise_min or not self.raise_max or self.raise_max < self.raise_min then return end
   local valor = self.raise_min + (self.raise_max - self.raise_min) * progreso
   self.raise_value = math.floor(valor / 5 + 0.5) * 5
   self.raise_value = math.max(self.raise_min, math.min(self.raise_max, self.raise_value))
@@ -595,15 +643,15 @@ end
 
 function Poker:keypressed(key)
   if key == "escape" then
-    self:salir()
+    if self.buyin_mode then self.machine:switch(nil) else self:salir() end
   end
 end
 
 function Poker:mousepressed(x, y, button)
   if button ~= 1 or self.input_lock > 0 then return end
-  if self.slider and punto_en_rect(x, y, self.slider) and self.raise_min then
-    self.dragging_raise = true
-    self:actualizar_raise_desde_mouse(x)
+  if self.slider and punto_en_rect(x, y, self.slider) and (self.buyin_mode or self.raise_min) then
+    if self.buyin_mode then self.dragging_buyin = true else self.dragging_raise = true end
+    self:actualizar_slider_desde_mouse(x)
     return
   end
   for _, boton in ipairs(self.botones) do
@@ -617,11 +665,11 @@ function Poker:mousepressed(x, y, button)
 end
 
 function Poker:mousemoved(x, y)
-  if self.dragging_raise then self:actualizar_raise_desde_mouse(x) end
+  if self.dragging_raise or self.dragging_buyin then self:actualizar_slider_desde_mouse(x) end
 end
 
 function Poker:mousereleased(_, _, button)
-  if button == 1 then self.dragging_raise = false end
+  if button == 1 then self.dragging_raise, self.dragging_buyin = false, false end
 end
 
 function Poker:revelar_siguiente()
@@ -654,6 +702,17 @@ function Poker:revelar_siguiente()
 end
 
 function Poker:update(dt)
+  if self.buyin_mode then
+    self:actualizar_botones()
+    local mouse_x, mouse_y = love.mouse.getPosition()
+    for _, boton in ipairs(self.botones) do
+      local hover = punto_en_rect(mouse_x, mouse_y, boton)
+      boton.press = math.max(0, boton.press - dt)
+      boton.flash = math.max(0, boton.flash - dt)
+      boton.scale = lerp(boton.scale, hover and 1.08 or 1, math.min(1, dt * 16))
+    end
+    return
+  end
   self.input_lock = math.max(0, (self.input_lock or 0) - dt)
   self:preparar_turno_bot()
   if self.bot_wait then
@@ -882,6 +941,30 @@ local function dibujar_ui(estado, width, height)
   love.graphics.setColor(1, 1, 1, 1)
 end
 
+local function dibujar_compra(estado, width, height)
+  love.graphics.setColor(0, 0, 0, 0.76)
+  love.graphics.rectangle("fill", 0, 0, width, height)
+  love.graphics.setFont(estado.fuente_boton)
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.printf("POKER BUY-IN", 0, height * 0.28, width, "center")
+  love.graphics.setFont(estado.fuente_ui)
+  love.graphics.printf(estado.buyin_value .. " M  =  " .. estado.buyin_value * estado.chips_per_million .. " CHIPS",
+    0, height * 0.38, width, "center")
+  love.graphics.setColor(1, 1, 1, 0.72)
+  love.graphics.printf("Choose how much of your " .. estado.context.economy:get_money() .. " M account to exchange",
+    0, height * 0.44, width, "center")
+  estado.slider = { x = width / 2, y = height * 0.55, w = math.min(520, width * 0.55), h = 30 }
+  local progress = (estado.buyin_value - estado.buyin_min) / math.max(1, estado.buyin_max - estado.buyin_min)
+  love.graphics.setColor(0.03, 0.03, 0.03, 0.9)
+  love.graphics.rectangle("fill", estado.slider.x - estado.slider.w / 2, estado.slider.y - 4, estado.slider.w, 8, 4, 4)
+  love.graphics.setColor(0.40, 0.28, 0.16, 0.95)
+  love.graphics.rectangle("fill", estado.slider.x - estado.slider.w / 2, estado.slider.y - 4,
+    estado.slider.w * progress, 8, 4, 4)
+  love.graphics.setColor(0.72, 0.60, 0.40, 1)
+  love.graphics.circle("fill", estado.slider.x - estado.slider.w / 2 + estado.slider.w * progress, estado.slider.y, 12)
+  dibujar_botones(estado, width, height)
+end
+
 local function dibujar_showdown(estado, width, height, layout)
   if estado.game.status ~= "showdown" then return end
   local tiempo = math.min(1, (estado.showdown_time or 0) / 0.9)
@@ -928,7 +1011,7 @@ function Poker:draw()
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.draw(FONDO, x, y, 0, escala, escala)
   love.graphics.draw(MESA, x, y, 0, escala, escala)
-  dibujar_escena(self, width, height)
+  if self.buyin_mode then dibujar_compra(self, width, height) else dibujar_escena(self, width, height) end
   love.graphics.setCanvas()
   self.current = self.canvas_a
 
@@ -946,13 +1029,15 @@ function Poker:draw()
   love.graphics.draw(self.current, 0, 0)
   love.graphics.setFont(self.fuente_ui)
   love.graphics.setColor(1, 1, 1, 1)
-  local aviso = self.jugada_registrada and (Mando.boton("volver") .. " · Volver al casino")
+  local aviso = self.buyin_mode and "Elige tu compra de fichas"
+    or self.jugada_registrada and (Mando.boton("volver") .. " · Volver al casino")
     or "Juega 3 manos para salir"
   love.graphics.printf(aviso, 0, 12, width, "center")
   love.graphics.pop()
 end
 
 function Poker:leave()
+  self:liquidar_fichas()
   self.context, self.machine, self.opciones = nil, nil, nil
   self.cartas, self.baraja, self.jugadores, self.comunales = nil, nil, nil, nil
   self.bots, self.holdem_board, self.game = nil, nil, nil
@@ -960,6 +1045,7 @@ function Poker:leave()
   self.bot_wait, self.bot_index, self.action_fx = nil, nil, nil
   self.canvas_a, self.canvas_b, self.current, self.multiply_shader = nil, nil, nil, nil
   self.fuente_ui, self.fuente_boton = nil, nil
+  self.buyin_mode, self.dragging_buyin, self.buyin_spent, self.cashed_out, self.cashout_money = nil, nil, nil, nil, nil
 end
 
 return Poker
