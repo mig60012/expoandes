@@ -86,15 +86,13 @@ local hud_context = { economy = require("src/systems/economy").new(37.5),
   progress = Progress.new({ values = { family_points = 3 } }) }
 Hud.draw(hud_context)
 love.graphics.printf = old_printf
-assert(hud_text["Deuda: 37.5 / 125 M"] and hud_text["Familia: 3 / 5"],
-  "el HUD global muestra ambos contadores en cualquier estado")
+assert(hud_text["Deuda: 37.5 / 125 M"] and not hud_text["Familia: 3 / 5"],
+  "el HUD global muestra la deuda pero no expone los puntos familiares")
 assert(not Hud.visible("animacion") and not Hud.visible("finales") and Hud.visible("casa")
   and Hud.visible("casino") and Hud.visible("transicion") and Hud.visible("trabajo"),
   "el backstory y los finales son las unicas escenas sin contadores")
 local hud_layout = Hud.layout(1280, 720)
-assert(hud_layout.debt.x == hud_layout.family.x
-  and hud_layout.debt.y + hud_layout.debt.h < hud_layout.family.y,
-  "los contadores se apilan sin superponerse en la misma esquina")
+assert(hud_layout.debt and not hud_layout.family, "solo queda el contador de deuda")
 local selected
 local options_view = View.new(context, { start = "choice", nodes = { choice = { speaker = "Protagonista",
   text = "Elige una respuesta.", choices = { {text="Primera", action="first"}, {text="Segunda", action="second"} } } } },
