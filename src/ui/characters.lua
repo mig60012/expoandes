@@ -9,6 +9,7 @@ local portrait_paths = {
   Protagonista = "assets/personajes/protagonista.png",
   Esposa = "assets/personajes/esposa.png",
   Hija = "assets/personajes/hija.png",
+  Vagabundo = "assets/personajes/vagabundo.png",
 }
 local portrait_cache = {}
 
@@ -16,6 +17,7 @@ local height_rules = {
   Protagonista = { screen = 0.70, available = 1.00 },
   Esposa = { screen = 0.58, available = 0.88 },
   Hija = { screen = 0.54, available = 0.82 },
+  Vagabundo = { screen = 0.62, available = 0.90 },
 }
 
 local function model_bounds(name, bounds)

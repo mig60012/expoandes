@@ -21,8 +21,8 @@ assert(house_portraits:uses_asset("Protagonista") and house_portraits:uses_asset
   "la casa usa solo los tres retratos entregados")
 local street_portraits = View.new(context, portrait_source)
 street_portraits.partner = "Vagabundo"
-assert(street_portraits:uses_asset("Protagonista") and not street_portraits:uses_asset("Vagabundo"),
-  "con el vagabundo solo se reemplaza al protagonista")
+assert(street_portraits:uses_asset("Protagonista") and street_portraits:uses_asset("Vagabundo"),
+  "en los encuentros de calle se usan los retratos del protagonista y del vagabundo")
 street_portraits.partner = "Gota a gota"
 assert(not street_portraits:uses_asset("Protagonista") and not street_portraits:uses_asset("Gota a gota"),
   "las demas escenas conservan placeholders")
@@ -30,6 +30,20 @@ local transition_portraits = View.new(context, { start = "line", nodes = {
   line = { speaker = "Protagonista", text = "Debo seguir." } } }, nil, { portrait_mode = "transition" })
 assert(transition_portraits:uses_asset("Protagonista"),
   "cada intervencion del protagonista en la transicion usa su sprite")
+local DialogueView = require("src/states/transicion/dialogue")
+local fallback_speaker, fallback_node = "Vagabundo", {}
+local fallback_portraits = setmetatable({
+  partner = false,
+  dialogue = {
+    current_node = function() return fallback_node end,
+    current_speaker = function() return fallback_speaker end,
+  },
+}, DialogueView)
+fallback_portraits:_update_partner()
+assert(fallback_portraits.partner == "Vagabundo", "la transicion alternativa muestra al vagabundo")
+fallback_speaker, fallback_node = "Protagonista", {}
+fallback_portraits:_update_partner()
+assert(fallback_portraits.partner == "Vagabundo", "el retrato permanece durante la respuesta del protagonista")
 for _, height in ipairs({600,720,1080}) do
   local driving = Characters.travel_speed(context, height)
   context.progress:set_flag("car_sold", true)
@@ -65,6 +79,8 @@ love = {
 local hud_text = {}
 local old_printf = love.graphics.printf
 love.graphics.printf = function(text) hud_text[text] = true end
+Characters.draw("Vagabundo", model_area, true, nil, true)
+assert(loaded["assets/personajes/vagabundo.png"], "el retrato del vagabundo se carga desde personajes")
 local hud_context = { economy = require("src/systems/economy").new(37.5),
   rules = { debt_total = 125, family_points_threshold = 5 },
   progress = Progress.new({ values = { family_points = 3 } }) }

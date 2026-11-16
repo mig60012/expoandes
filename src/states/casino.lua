@@ -19,9 +19,18 @@ local TAMANO_LETRA = 18
 local ALTURA_CAMARA = 70
 local ALTURA_AVISO = 240
 local CARPETA_FOTOS = "src/states/casino/assets/"
+local CARPETA_PERSONAJE = "assets/casino/personaje/"
+local INTERVALO_CAMINATA = 0.12
+local ESCALA_PERSONAJE = 1.15
 local MINIMOS = { ruleta = 1, blackjack = 2, poker = 3 }
 local JUGADAS_POR_BLOQUE, CANSANCIO = 3, 0.08
 local NOCHE = 2
+local SPRITES_PERSONAJE = {
+  atras = { archivo = "caminando_atras.png", cantidad = 2, y = 10, alto = 748 },
+  frente = { archivo = "caminando_frente.png", cantidad = 2, y = 6, alto = 744 },
+  izquierda = { archivo = "caminando_izquierda.png", cantidad = 6, y = 152, alto = 507 },
+  derecha = { archivo = "caminando_derecha.png", cantidad = 6, y = 155, alto = 469 },
+}
 
 local PISO = { 0.85, 0.85, 0.85 }
 local FIGURA = { 0.8, 0.8, 0.8 }
@@ -49,6 +58,25 @@ end
 local function cargar_imagen(ruta)
   local ok, imagen = pcall(love.graphics.newImage, ruta)
   return ok and imagen or nil
+end
+
+local function cargar_sprites_personaje()
+  local sprites = {}
+  for direccion, datos in pairs(SPRITES_PERSONAJE) do
+    local imagen = love.graphics.newImage(CARPETA_PERSONAJE .. datos.archivo)
+    local ancho, alto = imagen:getWidth(), imagen:getHeight()
+    local cuadros = {}
+    for indice = 1, datos.cantidad do
+      local izquierda = math.floor((indice - 1) * ancho / datos.cantidad)
+      local derecha = math.floor(indice * ancho / datos.cantidad)
+      cuadros[indice] = {
+        quad = love.graphics.newQuad(izquierda, datos.y, derecha - izquierda, datos.alto, ancho, alto),
+        ancho = derecha - izquierda,
+      }
+    end
+    sprites[direccion] = { imagen = imagen, alto = datos.alto, cuadros = cuadros, cantidad = datos.cantidad }
+  end
+  return sprites
 end
 
 local function cargar_fotos()
@@ -210,10 +238,48 @@ local function dibujar_persona(x, y, alto)
   ovalo(PELO, 0, 0.95, 0.06, 0.03)
 end
 
-local function dibujar_jugador(jugador)
+local function dibujar_jugador(jugador, sprites, direccion, indice_cuadro)
   love.graphics.setColor(BORDE)
   love.graphics.ellipse("fill", jugador.x, jugador.y, Plano.jugador.radio, Plano.jugador.radio / Plano.estiramiento)
-  dibujar_persona(jugador.x, jugador.y, Plano.jugador.alto)
+  local sprite = sprites and sprites[direccion]
+  local cuadro = sprite and sprite.cuadros[indice_cuadro or 1]
+  if sprite and cuadro and cuadro.quad then
+    local escala = Plano.jugador.alto * ESCALA_PERSONAJE / sprite.alto
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(sprite.imagen, cuadro.quad, jugador.x, jugador.y, 0, escala, escala,
+      cuadro.ancho / 2, sprite.alto)
+  else
+    dibujar_persona(jugador.x, jugador.y, Plano.jugador.alto * ESCALA_PERSONAJE)
+  end
+end
+
+local function actualizar_animacion_personaje(estado, dx, dy, dt)
+  if math.abs(dx) < 0.001 and math.abs(dy) < 0.001 then
+    estado.indice_cuadro = 1
+    estado.tiempo_cuadro = 0
+    return false
+  end
+
+  local direccion
+  if math.abs(dx) > math.abs(dy) then
+    direccion = dx < 0 and "izquierda" or "derecha"
+  else
+    direccion = dy < 0 and "atras" or "frente"
+  end
+  if direccion ~= estado.direccion_personaje then
+    estado.direccion_personaje = direccion
+    estado.indice_cuadro = 1
+    estado.tiempo_cuadro = 0
+  end
+
+  local sprite = estado.sprites_personaje[direccion]
+  estado.tiempo_cuadro = estado.tiempo_cuadro + math.min(dt, 0.25)
+  local avances = math.floor(estado.tiempo_cuadro / INTERVALO_CAMINATA)
+  if avances > 0 then
+    estado.tiempo_cuadro = estado.tiempo_cuadro - avances * INTERVALO_CAMINATA
+    estado.indice_cuadro = (estado.indice_cuadro - 1 + avances) % sprite.cantidad + 1
+  end
+  return true
 end
 
 local function dibujar_aviso(objeto, fuente)
@@ -257,6 +323,8 @@ function casino:enter(context)
   self.context = context
   Audio.iniciar_bucle("casino_music")
   Audio.iniciar_bucle("casino_ambiente")
+  self.sprites_personaje = cargar_sprites_personaje()
+  self.direccion_personaje, self.indice_cuadro, self.tiempo_cuadro = "frente", 1, 0
   self.paso_reloj = 0
   -- La historia conserva el capital inicial de main y las ganancias. Los
   -- estados aislados de pruebas mantienen el reinicio de saldo anterior.
@@ -322,6 +390,8 @@ function casino:leave()
   end
   self.context, self.fuente, self.fuente_dialogo, self.fuente_marcador, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
+  self.sprites_personaje = nil
+  self.direccion_personaje, self.indice_cuadro, self.tiempo_cuadro = nil, nil, nil
   self.arte = nil
   self.jornada, self.historial = nil
   self.decision_tomada, self.limite_pendiente = nil, nil
@@ -467,7 +537,10 @@ function casino:update(dt)
     local tecla = love.keyboard.isDown
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
+    local x_anterior, y_anterior = self.jugador.x, self.jugador.y
     self.jugador:mover(dx, dy, dt)
+    actualizar_animacion_personaje(self,
+      self.jugador.x - x_anterior, self.jugador.y - y_anterior, dt)
     if dx ~= 0 or dy ~= 0 then
       self.paso_reloj = self.paso_reloj - dt
       if self.paso_reloj <= 0 then
@@ -512,7 +585,7 @@ function casino:draw()
       dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
-  dibujar_jugador(self.jugador)
+  dibujar_jugador(self.jugador, self.sprites_personaje, self.direccion_personaje, self.indice_cuadro)
   for objeto, imagen in pairs(self.fotos) do
     if tapa_al_jugador(objeto, self.jugador) then
       dibujar_mesa(objeto, imagen, self.arte ~= nil)

@@ -1,4 +1,5 @@
 local Dialogue = require("src/systems/dialogue")
+local Characters = require("src/ui/characters")
 
 local DialogueView = {}
 DialogueView.__index = DialogueView
@@ -9,6 +10,7 @@ function DialogueView.new(context, filename)
     active = false,
     selected = 1,
     error = nil,
+    partner = false,
   }, DialogueView)
 end
 
@@ -20,6 +22,18 @@ end
 
 function DialogueView:is_active()
   return self.active
+end
+
+function DialogueView:_update_partner()
+  local node = self.dialogue:current_node() or {}
+  local speaker = self.dialogue:current_speaker()
+  if node.partner ~= nil then self.partner = node.partner end
+  if speaker == "Narrador" then
+    self.partner = false
+  elseif speaker and speaker ~= "Protagonista" then
+    self.partner = speaker
+  end
+  return speaker
 end
 
 function DialogueView:update(_dt)
@@ -72,11 +86,22 @@ function DialogueView:draw()
   end
 
   local width, height = love.graphics.getDimensions()
+  local speaker = self:_update_partner()
+  if self.partner == "Vagabundo" then
+    local portrait_y = height * 0.06
+    local panel_y = height - height / 3
+    Characters.draw("Vagabundo", {
+      x = width * 0.63,
+      y = portrait_y,
+      w = width * 0.29,
+      h = panel_y - portrait_y,
+      screen_h = height,
+    }, speaker == "Vagabundo", love.graphics.getFont(), true)
+  end
   love.graphics.setColor(0, 0, 0, 1)
   love.graphics.rectangle("fill", 0, height - height / 3, width, height / 3)
   love.graphics.setColor(1, 1, 1, 1)
 
-  local speaker = self.dialogue:current_speaker()
   local line = self.dialogue:current_line() or ""
   love.graphics.print(speaker or "", 20, height - height / 3 + 10)
   love.graphics.printf(line, 20, height - height / 3 + 35, width - 40)
