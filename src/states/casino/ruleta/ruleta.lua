@@ -101,6 +101,7 @@ function Ruleta:cobrar()
   local pago = Apuestas.pago(self.jugadas, numero)
   self.context.economy:add_money(pago)
   self.gano = pago > 0
+  Audio.reproducir(self.gano and "coins" or "failure")
   local razon = (numero == 0 and not self.gano) and "El 0 solo gana si apuestas al 0"
     or ("El " .. numero .. (self.gano and " está" or " no está") .. " en tu apuesta")
   self.explicacion = {

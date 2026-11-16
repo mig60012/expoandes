@@ -270,11 +270,13 @@ function Poker:liquidar_fichas()
   local chips = self.game and self.game.players[1].stack or 0
   local money = chips / self.chips_per_million
   self.context.economy:add_money(money)
+  Audio.reproducir("coins")
   self.cashout_money = money
   return money
 end
 
 function Poker:iniciar_mano()
+  Audio.reproducir("card_shuffle")
   if self.game.hand_number > 0 then self.game:rotate_dealer() end
   self.baraja = self.cartas:create_deck()
   for _, carta in ipairs(self.baraja.cards_list) do

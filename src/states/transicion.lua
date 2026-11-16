@@ -2,6 +2,7 @@ local transicion = {}
 local Characters = require("src/ui/characters")
 local StoryView = require("src/ui/story_dialogue")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 local filtro_add_tarde = love.graphics.newImage("assets/transicion/Filtro_add(tarde).PNG")
 local filtro_add_siempre = love.graphics.newImage("assets/transicion/filtro_add_siempre.PNG")
 local filtro_color_burn = love.graphics.newImage("assets/transicion/Filtro_color_burn.PNG")
@@ -171,6 +172,8 @@ end
 
 function transicion:enter(context, from_casa)
   self.context = context
+  Audio.iniciar_bucle("calle_ambiente")
+  self.paso_reloj = 0
   self.transition_error = nil
   local from_house = from_casa or context.state_machine.last == "casa"
   self.facing = from_house and 1 or -1
@@ -214,7 +217,16 @@ function transicion:update(dt)
   if love.keyboard.isDown("d") then
     dir = dir + speed * dt
   end
-  if dir ~= 0 then self.facing = dir < 0 and -1 or 1 end
+  if dir ~= 0 then
+    self.facing = dir < 0 and -1 or 1
+    self.paso_reloj = self.paso_reloj - dt
+    if self.paso_reloj <= 0 then
+      Audio.reproducir("footstep_" .. love.math.random(1, 3))
+      self.paso_reloj = 0.36
+    end
+  else
+    self.paso_reloj = 0
+  end
   player_pos = math.max(0, math.min(manana_bg:getWidth() - 50,
     player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)))
   if not light_flickering then
@@ -252,8 +264,10 @@ function transicion:update(dt)
         return
       end
     end
+    Audio.reproducir("door_open")
     self.context.state_machine:switch("casa")
   elseif player_pos > 8600 then
+    Audio.reproducir("door_open")
     self.context.state_machine:switch("casino")
   end
 end
@@ -289,7 +303,10 @@ function transicion:mousepressed(x, y, button)
     return
   end
   local door = self:door_at(x, y)
-  if door then self.context.state_machine:switch(door.state) end
+  if door then
+    Audio.reproducir("door_open")
+    self.context.state_machine:switch(door.state)
+  end
 end
 
 function transicion:draw()
