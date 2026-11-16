@@ -1,0 +1,215 @@
+
+flowchart TD
+
+  subgraph INICIO["SECUENCIA DE INICIO"]
+    direction TB
+    I1["CASA · Antes del salto temporal<br/>El protagonista apuesta desde el celular. La esposa lo observa.<br/><br/>Esposa: «¿Otra vez?»<br/>Protagonista: «Ya casi termino».<br/>Esposa: «Eso dijiste ayer».<br/>Protagonista: «Estoy intentando recuperar lo que perdí».<br/>Esposa: «¿Y si lo dejas por hoy?»<br/>Protagonista: «No es tan sencillo».<br/><br/>La conversación queda sin resolver."]:::scene
+    I2["SALTO TEMPORAL · Un año después<br/>Ya no apuesta solamente desde el celular. Va con frecuencia al casino.<br/>La deuda y las ausencias han empezado a afectar su vida cotidiana."]:::intro
+    I3["CALLE · Noche<br/>El protagonista negocia un préstamo con un prestamista gota a gota.<br/>Se establece el plazo y la cantidad adeudada."]:::scene
+    I4["CASA · Cinco días antes del vencimiento<br/>El prestamista amenaza con buscar a su familia si no paga.<br/>El protagonista intenta disimular la preocupación cuando vuelve a entrar.<br/>No explica todavía a su esposa lo que ocurre."]:::scene
+    I5["CASA · Inicio del juego<br/>El protagonista se prepara para salir. Le dice a su familia que va a trabajar."]:::scene
+    I1 --> I2 --> I3 --> I4 --> I5
+  end
+
+  subgraph DIA1["DÍA 1 · La normalidad todavía existe"]
+    direction TB
+    A1["CASA · Mañana<br/>Esposa: «Que te vaya bien. ¿Vas a llegar temprano hoy?»<br/>Protagonista: «Voy a intentarlo».<br/>Hija: «¡Papá! ¿Sabías que ya casi termino el colegio?»"]:::scene
+    A2{{"DECISIÓN 1.1<br/>¿Cómo responde a su hija?"}}:::decision
+    A3["Opción A · Se interesa<br/>Protagonista: «¿En serio? ¿Ya sabes qué quieres estudiar?»<br/>Hija: «Todavía no estoy segura. Pero quiero entrar a la universidad».<br/>Protagonista: «Ya veremos cómo hacemos. Lo importante es que estudies algo que te guste».<br/>Hija: «Gracias, papá».<br/>+PF"]:::scene
+    A4["Opción B · Sale con prisa<br/>Protagonista: «Qué bien, hija. Ahora tengo que salir, voy un poco tarde».<br/>Hija: «Ah… bueno. Que te vaya bien»."]:::scene
+    A5["CALLE · Camino al casino<br/>El protagonista pasa junto al vagabundo.<br/>Vagabundo: «Buenos días».<br/>Protagonista: «Buenos días».<br/>Vagabundo: «Que tenga buen día».<br/>No hay advertencia ni confrontación."]:::scene
+    A6["CASINO · Primera visita del día<br/>El protagonista entra y se dirige a los juegos."]:::scene
+    A7{{"DECISIÓN 1.2<br/>¿Cuántas partidas juega?"}}:::decision
+    A8["Juega 3 partidas (x3)"]:::scene
+    A9["Juega 6 partidas (x6)<br/>Permanece en el casino durante todo el día."]:::scene
+    A10["CALLE · Regreso<br/>Vagabundo: «¿Ya terminó por hoy?»<br/>Protagonista: «Sí, tengo que volver».<br/>Vagabundo: «Bueno. Cuídese».<br/>Protagonista (pensamiento): «No fue suficiente. Pero todavía tengo tiempo»."]:::scene
+    A11{{"DECISIÓN 1.3 · CASA<br/>¿Trabajar o pasar tiempo con la familia?"}}:::decision
+    A12["Trabaja<br/>Obtiene la cantidad fija de dinero prevista por la mecánica.<br/>No suma PF."]:::scene
+    A13["Pasa tiempo con la familia<br/>Esposa: «Me alegra que hayas llegado».<br/>Hija: «Mañana te cuento algo del colegio».<br/>Protagonista: «Claro».<br/>+PF"]:::scene
+    A14["CALLE · Noche<br/>El vagabundo se ha quedado dormido."]:::scene
+    A15["CASA · Noche<br/>Todos duermen.<br/>Protagonista (pensamiento): «Mañana tendré más suerte. No puedo seguir perdiendo tiempo»."]:::scene
+    A16(["N1 = A<br/>x3 + tiempo con la familia"]):::state
+    A17(["N1 = B<br/>x3 + trabajó"]):::state
+    A18(["N1 = C<br/>x6"]):::state
+    A1 --> A2
+    A2 -->|"A · +PF"| A3
+    A2 -->|"B"| A4
+    A3 --> A5
+    A4 --> A5
+    A5 --> A6 --> A7
+    A7 -->|"x3"| A8 --> A10 --> A11
+    A7 -->|"x6"| A9 --> A14 --> A15 --> A18
+    A11 -->|"Trabajar"| A12 --> A17
+    A11 -->|"Familia · +PF"| A13 --> A16
+  end
+
+  subgraph DIA2["DÍA 2 · Las primeras justificaciones"]
+    direction TB
+    B1["CASA · Mañana · Si N1 = A<br/>Esposa: «Anoche la niña estuvo muy contenta de que llegaras».<br/>Hija: «¿Hoy también vas a estar?»<br/>Protagonista: «Voy a intentar terminar temprano»."]:::scene
+    B2["CASA · Mañana · Si N1 = B o C<br/>Esposa: «¿Mucho trabajo anoche?»<br/>Protagonista: «Sí. Se me hizo tarde».<br/>Hija: «Últimamente siempre se te hace tarde».<br/>Esposa: «Deja que desayune, hija»."]:::scene
+    B3{{"DECISIÓN 2.1<br/>Si N1 = A: ¿qué responde a su hija?"}}:::decision
+    B4["Opción A<br/>Protagonista: «Yo también te extrañé. Me gustó estar con ustedes ayer».<br/>Hija: «Entonces intenta llegar temprano hoy».<br/>Protagonista: «Voy a intentarlo».<br/>+PF"]:::scene
+    B5["Opción B<br/>Protagonista: «No puedo prometer que vaya a ser seguido. Tengo mucho trabajo».<br/>Hija: «Bueno…»"]:::scene
+    B6["CASA · Si N1 = B o C<br/>No hay decisión adicional. La familia continúa con su mañana."]:::scene
+    B7["CALLE · Camino al casino<br/>Si N1 = A o B, el vagabundo lo reconoce.<br/>Vagabundo: «Otra vez por aquí».<br/>Protagonista: «Tengo cosas que hacer».<br/>Vagabundo: «Claro».<br/>Protagonista (pensamiento): «No entiende. No estoy aquí porque quiera. Tengo que resolver lo de la deuda»."]:::scene
+    B8["CALLE · Camino al casino<br/>Si N1 = C, el vagabundo no lo vio regresar la noche anterior.<br/>Vagabundo: «Buenos días. ¿Cómo le fue ayer?»<br/>Protagonista: «Más o menos».<br/>Vagabundo: «A veces pasa»."]:::scene
+    B9["CASINO · Segunda visita"]:::scene
+    B10{{"DECISIÓN 2.2<br/>¿Cuántas partidas juega?"}}:::decision
+    B11["Juega 3 partidas (x3)"]:::scene
+    B12["Juega 6 partidas (x6)<br/>El vagabundo ya está dormido cuando vuelve."]:::scene
+    B13{{"DECISIÓN 2.3 · CASA<br/>Si jugó x3: ¿trabajar o pasar tiempo con la familia?"}}:::decision
+    B14["Trabaja<br/>Obtiene la cantidad fija de dinero.<br/>No suma PF."]:::scene
+    B15["Pasa tiempo con la familia<br/>La conversación es cotidiana: hablan de la jornada y de los planes de la hija.<br/>+PF"]:::scene
+    B16["CASA · Noche<br/>Si jugó x6, llega cuando todos duermen.<br/>No hay conversación."]:::scene
+    B17(["N2 = A<br/>x3 + tiempo con la familia"]):::state
+    B18(["N2 = B<br/>x3 + trabajó"]):::state
+    B19(["N2 = C<br/>x6"]):::state
+    A16 --> B1
+    A17 --> B2
+    A18 --> B2
+    B1 --> B3
+    B3 -->|"A · +PF"| B4
+    B3 -->|"B"| B5
+    B2 --> B6
+    B4 --> B7
+    B5 --> B7
+    B6 -->|"Si N1 = B"| B7
+    B6 -->|"Si N1 = C"| B8
+    B7 --> B9
+    B8 --> B9
+    B9 --> B10
+    B10 -->|"x3"| B11 --> B13
+    B10 -->|"x6"| B12 --> B16 --> B19
+    B13 -->|"Trabajar"| B14 --> B18
+    B13 -->|"Familia · +PF"| B15 --> B17
+  end
+
+  subgraph DIA3["DÍA 3 · Las consecuencias empiezan a hacerse visibles"]
+    direction TB
+    C1["CASA · Mañana · Si N2 = A<br/>Esposa: «Me alegra que ayer llegaras temprano».<br/>Hija: «Hoy tengo un evento en el colegio. Estoy un poco nerviosa».<br/>Protagonista: «¿Qué vas a presentar?»<br/>Hija: «Una presentación. Después te cuento cómo me fue»."]:::scene
+    C2["CASA · Mañana · Si N2 = B o C<br/>Esposa: «Últimamente casi no coincidimos».<br/>Protagonista: «Estoy trabajando».<br/>Esposa: «Lo sé. No te estoy diciendo que no trabajes. La niña pregunta mucho por ti».<br/>Protagonista: «Estoy haciendo lo que puedo»."]:::scene
+    C3{{"DECISIÓN 3.1<br/>Si N2 = A: ¿cómo responde a su hija?"}}:::decision
+    C4["Opción A<br/>Protagonista: «Que te vaya bien. Después me cuentas cómo te fue».<br/>Hija: «¿De verdad vas a escuchar todo?»<br/>Protagonista: «Todo».<br/>Hija: «Entonces te guardo los detalles».<br/>+PF"]:::scene
+    C5["Opción B<br/>Protagonista: «Qué bueno. Tengo que salir ya, voy tarde».<br/>Hija: «Ah, bueno. Suerte entonces»."]:::scene
+    C6["CASA · Si N2 = B o C<br/>Si N1 y N2 fueron ambos B o C:<br/>Esposa: «Necesito preguntarte algo. ¿Está pasando algo en el trabajo?»<br/>Protagonista: «No. ¿Por qué?»<br/>Esposa: «No sé. Últimamente estás distinto».<br/>Protagonista: «Estoy cansado, nada más».<br/><br/>Si no fueron dos noches consecutivas de ausencia, la conversación no ocurre."]:::scene
+    C7["CALLE · Camino al casino<br/>Si N2 = A o B:<br/>Vagabundo: «Buenos días. ¿Cómo va el día?»<br/>Protagonista: «Podría ir mejor».<br/>Vagabundo: «Ojalá mejore»."]:::scene
+    C8["CALLE · Camino al casino<br/>Si N1 = C y N2 = C:<br/>Vagabundo: «Hace tiempo que no lo veo salir temprano».<br/>Protagonista: «Tengo asuntos pendientes».<br/>Vagabundo: «No tiene que explicarme nada».<br/>Protagonista: «Tengo una deuda. No puedo simplemente dejar de ir».<br/>Vagabundo: «Yo también tuve una deuda».<br/>Protagonista: «¿Y qué hizo?»<br/>Vagabundo: «Seguí jugando»."]:::scene
+    C9["CALLE · Si no aplica ninguna condición anterior<br/>El vagabundo lo saluda brevemente o no está presente. No hay advertencia."]:::scene
+    C10["CASINO · Tercera visita"]:::scene
+    C11{{"DECISIÓN 3.2<br/>¿Cuántas partidas juega?"}}:::decision
+    C12["Juega 3 partidas (x3)<br/>Regresa a casa."]:::scene
+    C13["Juega 6 partidas (x6)<br/>Regresa de noche, cuando la familia duerme."]:::scene
+    C14{{"DECISIÓN 3.3 · CASA<br/>Si jugó x3: ¿vender el carro para pagar parte de la deuda?"}}:::decision
+    C15["Vende el carro y se lo cuenta a su esposa<br/>Protagonista: «He estado pensando que podríamos vender el carro».<br/>Esposa: «¿Para qué?»<br/>Protagonista: «Necesito dinero para una deuda».<br/>Esposa: «¿Qué deuda? Nunca me habías hablado de eso».<br/>Protagonista: «No quería preocuparte».<br/>Esposa: «No puedes decidir qué cosas tengo derecho a saber».<br/>La venta se realiza. -PF"]:::scene
+    C16["Conserva el carro<br/>La noche termina sin otra conversación."]:::scene
+    C17{{"DECISIÓN 3.3 · CASA · Sin diálogo<br/>Si jugó x6: ¿vender el carro sin hablarlo con su esposa?"}}:::decision
+    C18["Vende el carro sin contárselo<br/>La esposa todavía no sabe que lo vendió. -PF"]:::scene
+    C19["Conserva el carro<br/>La familia no sabe cuánto tiempo pasó en el casino."]:::scene
+    C20(["N3 = A<br/>x3 + vendió el carro; esposa informada"]):::state
+    C21(["N3 = B<br/>x3 + conservó el carro"]):::state
+    C22(["N3 = C<br/>x6 + vendió el carro sin hablarlo"]):::state
+    C23(["N3 = D<br/>x6 + conservó el carro"]):::state
+    B17 --> C1
+    B18 --> C2
+    B19 --> C2
+    C1 --> C3
+    C3 -->|"A · +PF"| C4
+    C3 -->|"B"| C5
+    C2 --> C6
+    C4 --> C7
+    C5 --> C7
+    C7 --> C10
+    C8 --> C10
+    C9 --> C10
+    C6 -->|"Si N2 = A o B"| C7
+    C6 -->|"Si N1 = C y N2 = C"| C8
+    C6 -->|"Si N2 = C y N1 no es C"| C9
+    C10 --> C11
+    C11 -->|"x3"| C12 --> C14
+    C11 -->|"x6"| C13 --> C17
+    C14 -->|"Vender"| C15 --> C20
+    C14 -->|"Conservar"| C16 --> C21
+    C17 -->|"Vender"| C18 --> C22
+    C17 -->|"Conservar"| C19 --> C23
+  end
+
+  subgraph DIA4["DÍA 4 · La mentira ya no puede mantenerse"]
+    direction TB
+    D1["CASA · Mañana · Si N3 = A<br/>Esposa: «No estaba de acuerdo con vender el carro, pero ya está hecho. Necesito que me expliques qué está pasando».<br/>Protagonista: «Es una deuda vieja. Voy a solucionarlo».<br/>Esposa: «¿Qué deuda? Nunca me hablaste de esto».<br/>Protagonista: «No quería preocuparte».<br/>Esposa: «No puedes decidir eso por mí»."]:::scene
+    D2["CASA · Mañana · Si N3 = C<br/>La esposa descubre que el carro ya no está.<br/>Esposa: «¿Dónde está el carro?»<br/>Protagonista: «Tuve que venderlo. Necesitaba el dinero».<br/>Esposa: «¿Lo vendiste sin decirme nada?»<br/>Protagonista: «No tenía tiempo para discutirlo».<br/>Esposa: «No es una discusión. Es nuestro carro».<br/>Protagonista: «Lo sé».<br/>Esposa: «No parece que lo sepas»."]:::scene
+    D3["CASA · Mañana · Si N3 = B o D<br/>Esposa: «¿Vas a llegar temprano hoy?»<br/>Protagonista: «No lo sé».<br/>Esposa: «La niña tiene cosas que contarte».<br/>Protagonista: «Voy a intentar estar».<br/>La conversación termina sin resolver la tensión."]:::scene
+    D4["CALLE · Camino al casino<br/>Si N3 = C o D (ayer jugó x6):<br/>Vagabundo: «¿Durmió algo anoche?»<br/>Protagonista: «¿Ahora también va a preguntarme eso?»<br/>Vagabundo: «No tiene que contestarme».<br/>Protagonista: «Tengo demasiadas cosas en la cabeza».<br/>Vagabundo: «Lo imagino»."]:::scene
+    D5["CALLE · Camino al casino<br/>Si N3 = A:<br/>Protagonista: «Tuve que vender el carro. Tengo una deuda con un prestamista».<br/>Vagabundo: «Yo también tuve que vender cosas».<br/>Protagonista: «No es lo mismo».<br/>Vagabundo: «Eso pensaba yo»."]:::scene
+    D6["CALLE · Camino al casino<br/>Si N3 = B:<br/>Vagabundo: «Cuídese, señor».<br/>El protagonista sigue caminando."]:::scene
+    D7["CASINO · Cuarta visita"]:::scene
+    D8{{"DECISIÓN 4.1<br/>¿Cuántas partidas juega?"}}:::decision
+    D9["Juega 3 partidas (x3)"]:::scene
+    D10["Juega 6 partidas (x6)"]:::scene
+    D11["CASA · Noche · Confrontación<br/>La esposa está despierta.<br/>Esposa: «¿Dónde estabas?»<br/>Protagonista: «Trabajando».<br/>Esposa: «No me mientas. Ya no sé cuándo me dices la verdad».<br/>Protagonista: «Tengo una deuda y estoy intentando pagarla».<br/>Esposa: «¿Con qué dinero?»<br/>Protagonista: «Estoy intentando conseguirlo».<br/>Esposa: «¿En el casino?»<br/>El protagonista guarda silencio.<br/>Esposa: «¿Cuánto has perdido?»<br/>Protagonista: «No lo sé».<br/>Esposa: «¿Cómo que no lo sabes?»<br/>Protagonista: «No lo sé, ¿está bien? No sé cuánto he perdido».<br/>Esposa: «Tenemos una hija. No puedes hacer esto sin decirme nada»."]:::scene
+    D12{{"DECISIÓN 4.2<br/>¿Cómo responde a su esposa?"}}:::decision
+    D13["Opción A · Se justifica<br/>Protagonista: «No hay marcha atrás. Sé jugar; puedo recuperar el dinero».<br/>Esposa: «Eso decías cuando apostabas desde el celular».<br/>Protagonista: «Esta vez es diferente».<br/>Esposa: «Eso es lo que me preocupa».<br/>-PF"]:::scene
+    D14["Opción B · Reconoce que perdió el control<br/>Protagonista: «No sé cómo llegué hasta aquí. Mañana voy a buscar otra solución».<br/>Esposa: «No sé si puedo confiar en ti ahora mismo».<br/>Protagonista: «Lo entiendo».<br/>Esposa: «Necesito que mañana me digas toda la verdad».<br/>No implica perdón ni resolución inmediata."]:::scene
+    D15(["Fin del Día 4"]):::state
+    C20 --> D1
+    C22 --> D2
+    C21 --> D3
+    C23 --> D3
+    D1 --> D5
+    D2 --> D4
+    D3 -->|"Si N3 = B"| D6
+    D3 -->|"Si N3 = D"| D4
+    D4 --> D7
+    D5 --> D7
+    D6 --> D7
+    D7 --> D8
+    D8 -->|"x3"| D9 --> D11
+    D8 -->|"x6"| D10 --> D11
+    D11 --> D12
+    D12 -->|"A · -PF"| D13 --> D15
+    D12 -->|"B · sin cambio PF"| D14 --> D15
+  end
+
+  subgraph DIA5["DÍA 5 · El costo de las decisiones"]
+    direction TB
+    E1["CASA · Mañana<br/>La esposa está distante. No inicia una discusión.<br/>Hija: «Papá, mamá me dijo que están pasando por un problema».<br/>Protagonista: «Lo siento. No quería que te preocuparas».<br/>Hija: «¿Por eso casi nunca estás?»<br/>Protagonista: «He estado intentando resolver unas cosas».<br/>Hija: «¿Y vas a volver a estar con nosotras?»<br/>Protagonista: «Claro».<br/>Hija: «No me prometas cosas si no estás seguro»."]:::scene
+    E2{{"DECISIÓN 5.1 · CASA<br/>¿Trabajar o ir al casino?"}}:::decision
+    E3["Trabaja durante el día<br/>Obtiene la cantidad fija de dinero."]:::scene
+    E4["Sale hacia el casino<br/>El vagabundo no está en la calle."]:::scene
+    E5["CASINO · Quinta visita"]:::scene
+    E6{{"DECISIÓN 5.2<br/>Si fue al casino: ¿cuántas partidas juega?"}}:::decision
+    E7["Juega 3 partidas (x3)"]:::scene
+    E8["Juega 6 partidas (x6)<br/>Regresa de noche."]:::scene
+    E9{{"DECISIÓN 5.3 · CASA<br/>¿Qué recurso utiliza para completar el pago?<br/>Hipotecar la casa / usar los ahorros universitarios / ninguno"}}:::decision
+    E10["Hipoteca la casa<br/>Protagonista: «Tengo que contarte algo. La deuda es mucho más grande de lo que te dije. He estado apostando».<br/>Esposa: «¿Cuánto tiempo llevas así?»<br/>Protagonista: «No sé exactamente».<br/>Esposa: «No puedo seguir viviendo sin saber qué va a pasar. Mañana me voy con la niña a casa de mi madre».<br/>-PF"]:::scene
+    E11["Usa los ahorros universitarios de la hija<br/>Protagonista: «Usé el dinero que teníamos guardado para la universidad».<br/>Hija: «¿Qué dinero?»<br/>Protagonista: «El que teníamos ahorrado».<br/>Hija: «¿El mío?»<br/>Protagonista: «Lo voy a recuperar».<br/>Hija: «Ese dinero era para estudiar».<br/>-PF"]:::scene
+    E12["No utiliza ninguno<br/>No hay una nueva confesión ni una escena de castigo. El día termina con la deuda pendiente."]:::scene
+    E13(["N5 = A<br/>Hipotecó la casa"]):::state
+    E14(["N5 = B<br/>Usó los ahorros universitarios"]):::state
+    E15(["N5 = C<br/>No utilizó ninguno"]):::state
+    D15 --> E1 --> E2
+    E2 -->|"Trabajar"| E3 --> E9
+    E2 -->|"Ir al casino"| E4 --> E5 --> E6
+    E6 -->|"x3"| E7 --> E9
+    E6 -->|"x6"| E8 --> E9
+    E9 -->|"Hipotecar"| E10 --> E13
+    E9 -->|"Ahorros"| E11 --> E14
+    E9 -->|"Ninguno"| E12 --> E15
+  end
+
+  subgraph FINALES["FINALES"]
+    direction TB
+    F1{"¿Qué porcentaje de la deuda logró pagar?"}:::cond
+    F2[["FINAL 1 · Menos del 50 %<br/>LA PÉRDIDA<br/><br/>CASA · Un día después<br/>La casa está vacía. La puerta está abierta. No hay nadie.<br/>Protagonista: «¿Amor?»<br/>No obtiene respuesta. Sobre la mesa quedan algunas pertenencias.<br/><br/>SALTO · Un mes después<br/>El protagonista está sentado en la calle, cerca del vagabundo.<br/>Protagonista: «¿Usted cree que alguna vez se puede volver a empezar?»<br/>Vagabundo: «No lo sé».<br/>Silencio.<br/><br/>La amenaza se concreta: el prestamista y sus hombres llegan a la casa y se llevan a la esposa y a la hija. La escena no se recrea como espectáculo; el jugador comprende lo ocurrido al encontrar la casa vacía."]]:::final
+    F3{"¿Alcanzó el umbral de relación familiar?"}:::cond
+    F4[["FINAL 2 · 50 % a menos del 100 % · PF suficiente<br/>UNA RELACIÓN QUE TODAVÍA EXISTE<br/><br/>SALTO · Un año después<br/>El negocio quebró y el protagonista tuvo que aceptar otro empleo. Está separado de su esposa. Su situación económica sigue siendo difícil.<br/><br/>Narración del protagonista:<br/>«A veces hablo con mi hija. No es como antes. Ya no me cuenta todo y tampoco sé cómo preguntarle».<br/>«Mi esposa no quiere verme. No la culpo».<br/><br/>La relación con la hija no está reparada, pero no ha desaparecido por completo."]]:::final
+    F5[["FINAL 3 · 50 % a menos del 100 % · PF insuficiente<br/>LA RUPTURA<br/><br/>SALTO · Un año después<br/>El negocio quebró. El protagonista tuvo que aceptar otro empleo y sigue teniendo dificultades económicas.<br/><br/>Narración del protagonista:<br/>«Hace meses que no hablo con ellas».<br/>«A veces pienso en llamarlas. Después recuerdo todo lo que les dije y todo lo que les oculté».<br/>«No sé si todavía quieren escucharme».<br/><br/>No se afirma que lo odien. La distancia y la ausencia de contacto expresan la ruptura."]]:::final
+    F6[["FINAL 4 · 100 % de la deuda<br/>LA DEUDA NUNCA FUE EL ÚNICO PROBLEMA<br/><br/>SALTO · Después de pagar la deuda<br/>El protagonista vuelve al casino. Ya no tiene la misma presión económica que lo llevó allí, pero entra y decide apostar otra vez.<br/><br/>Narración:<br/>«La deuda ya estaba pagada».<br/>«Podría haberme ido».<br/>«Pero seguía pensando que podía ganar un poco más».<br/><br/>Apuesta con las probabilidades normales del juego. El desenlace muestra que vuelve a perder lo que había conseguido.<br/><br/>No se manipula la probabilidad para forzar el final: la decisión de volver a apostar es el centro del desenlace."]]:::final
+    E13 --> F1
+    E14 --> F1
+    E15 --> F1
+    F1 -->|"<50 %"| F2
+    F1 -->|"50 % a <100 %"| F3
+    F1 -->|"100 %"| F6
+    F3 -->|"Sí"| F4
+    F3 -->|"No"| F5
+  end

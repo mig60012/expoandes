@@ -16,16 +16,16 @@ function Finales:enter(context)
   love.mouse.setVisible(true)
   love.mouse.setGrabbed(false)
   if self.id == "final_4" then
-    -- Ultima apuesta guionizada: aislada de las cuotas y de los RNG de las
-    -- mesas normales. El guion exige una derrota garantizada en este epilogo.
+    -- La elección del epílogo no altera las reglas ni las probabilidades de
+    -- las mesas normales. El resultado se narra después de elegir la mesa.
     local choices = {}
     for _, game in ipairs({ "Ruleta", "Blackjack", "Póker" }) do
       choices[#choices + 1] = { text = "Una última apuesta: " .. game, action = game, next = "perdida",
-        effects = { { type = "spend_money", amount = context.economy:get_money() } } }
+      }
     end
     self.view = View.new(context, { start = "apuesta", nodes = {
-      apuesta = { speaker = "Protagonista", text = "Pagué toda la deuda. Una última apuesta y podré recuperar mi situación...", choices = choices },
-      perdida = { speaker = "Narrador", text = "La última apuesta termina en derrota. Has vuelto a perderlo todo.", ending = true },
+      apuesta = { speaker = "Protagonista", text = "La deuda ya está pagada. Podría irme, pero todavía pienso que puedo ganar un poco más.", choices = choices },
+      perdida = { speaker = "Narrador", text = "La última apuesta termina en derrota. He vuelto a perder lo que había conseguido.", ending = true },
     } }, function(view, choice)
       self.last_game = choice and choice.action
       self:start_ending()
