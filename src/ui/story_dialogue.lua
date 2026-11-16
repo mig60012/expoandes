@@ -55,6 +55,7 @@ function View:update(_dt) end
 
 function View:uses_asset(name)
   if self.black then return false end
+  if name == "Vagabundo" then return self.partner == "Vagabundo" end
   if name == "Protagonista" then
     return self.portrait_mode == "house" or self.partner == "Vagabundo"
       or (self.portrait_mode == "transition" and self.dialogue:current_speaker() == "Protagonista")
