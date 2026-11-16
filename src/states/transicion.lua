@@ -193,7 +193,7 @@ function transicion:enter(context, from_casa)
     end
   end
   if context.story then
-    self.dialogue = StoryView.new(context, context.story:street(from_house))
+    self.dialogue = StoryView.new(context, context.story:street(from_house), nil, { portrait_mode = "transition" })
   else
     self.dialogue = DialogueView.new(context, filename)
   end

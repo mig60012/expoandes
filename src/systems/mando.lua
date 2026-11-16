@@ -90,11 +90,11 @@ function Mando.iniciar(opciones)
   end
   cruceta, palanca, repetir, botones = {}, {}, {}, {}
   accion_a, cursor_x, cursor_y, dispositivo = nil, nil, nil, "teclado"
-  if love.keyboard and love.keyboard.isDown ~= Mando.isDown then
+  if love and love.keyboard and love.keyboard.isDown ~= Mando.isDown then
     teclado_real = love.keyboard.isDown
     love.keyboard.isDown = Mando.isDown
   end
-  if love.mouse and love.mouse.isDown and love.mouse.isDown ~= Mando.raton_isDown then
+  if love and love.mouse and love.mouse.isDown and love.mouse.isDown ~= Mando.raton_isDown then
     raton_real = love.mouse.isDown
     love.mouse.isDown = Mando.raton_isDown
   end

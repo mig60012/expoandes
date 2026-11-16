@@ -26,8 +26,8 @@ local function context()
       daughter_savings_used = false, wife_knows_about_bets = false, homeless_man_saw_player = false },
       values = { current_day = 1, casino_games_today = 0, family_points = 0, debt_percentage = 0 },
       outcome_options = { N1 = {"A", "B", "C"}, N2 = {"A", "B", "C"}, N3 = {"A", "B", "C", "D"}, N5 = {"A", "B", "C"} } }),
-    rules = { family_points_threshold = 2, work_debt_percentage = 20, mortgage_debt_percentage = 80,
-      daughter_savings_debt_percentage = 40, car_debt_percentage = 20, work_income = 5 },
+    rules = { family_points_threshold = 5, debt_total = 125, house_sale_value = 15,
+      daughter_savings_value = 10, car_sale_value = 10, work_income = 5 },
     state_machine = { switch = function(self, name) self.current_name = name end },
   }
   c.day_flow = DayFlow.new(c)
@@ -64,11 +64,11 @@ for _, source in ipairs({Data.opening, Data.car_return, Data.confrontation, Data
   local ok, errors = Validator.validate(source); assert(ok, table.concat(errors, "; "))
 end
 local plans = {
-  { games = {6,6,6,6,6}, car = "keep", economic = "none", final = "final_1", morning = 2 },
-  { games = {3,3,3,3}, activity = "family", car = "keep", economic = "daughter_savings", final = "final_2", morning = 1, last_work = true },
-  { games = {3,6,6,6,3}, activity = "work", car = "sell_unknown", economic = "daughter_savings", final = "final_3", morning = 2 },
-  { games = {3,3,3,3}, activity = "work", car = "sell_known", economic = "mortgage", final = "final_4", morning = 2, last_work = true },
-  { games = {3,3,3,6,3}, activities = {"family", "work"}, car = "keep", economic = "none", final = "final_1", morning = 1 },
+  { games = {6,6,6,6,6}, car = "keep", economic = "none", money = 10, morning = 2 },
+  { games = {3,3,3,3}, activity = "family", car = "keep", economic = "daughter_savings", money = 25, morning = 1, last_work = true },
+  { games = {3,6,6,6,3}, activity = "work", car = "sell_unknown", economic = "daughter_savings", money = 35, morning = 2 },
+  { games = {3,3,3,3}, activity = "work", car = "sell_known", economic = "mortgage", money = 50, morning = 2, last_work = true },
+  { games = {3,3,3,6,3}, activities = {"family", "work"}, car = "keep", economic = "none", money = 15, morning = 1 },
 }
 for _, plan in ipairs(plans) do
   local c, house = context(), {}
@@ -94,10 +94,11 @@ for _, plan in ipairs(plans) do
     if day <= 2 and plan.games[day] == 3 and option == "work" then c.story:work_complete() end
   end
   assert(c.state_machine.current_name == "finales" and c.day_flow.finished)
-  assert(Evaluate.evaluate(c) == plan.final, "la historia usa la evaluacion de finales existente")
+  assert(c.economy:get_money() == plan.money, "saldo esperado " .. plan.money .. ", obtenido " .. c.economy:get_money())
+  assert(Evaluate.evaluate(c) == "final_1", "menos de la mitad de 125 M mantiene el primer final")
   assert(c.progress:get_flag("car_sold") == (plan.car ~= "keep"))
   assert(c.progress:get_flag("wife_knows_about_bets"), "la esposa descubre las apuestas el dia cuatro")
-  exhaust(View.new(c, Data.endings[plan.final], nil, { black = true }))
+  exhaust(View.new(c, Data.endings.final_1, nil, { black = true }))
 end
 local c = context()
 local source = { start = "texto", nodes = { texto = { speaker = "Hija", text = ("Una frase muy larga. "):rep(80),
@@ -114,7 +115,9 @@ view:keypressed("return")
 assert(c.progress:get_value("family_points") == 1, "no duplica efectos al terminar")
 for _, size in ipairs({{800,600}, {1280,720}, {1920,1080}, {720,1280}}) do
   local layout = View.layout(size[1], size[2], 3)
-  for _, rect in ipairs(layout.portraits) do assert(rect.y + rect.h < layout.panel.y, "el texto no cubre a los personajes") end
+  for _, rect in ipairs(layout.portraits) do
+    assert(math.abs(rect.y + rect.h - layout.panel.y) < 0.001, "los personajes se apoyan sobre el cuadro de texto")
+  end
   assert(layout.portraits[1].x + layout.portraits[1].w < layout.portraits[2].x, "los personajes ocupan lados diferentes")
   local last = layout.choices[3]
   assert(last.y + last.h <= layout.panel.y + layout.panel.h, "tres opciones caben dentro del cuadro")

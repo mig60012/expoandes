@@ -13,7 +13,7 @@ function Story:play(house, source, callback)
   house.dialogue = View.new(self.context, source, function(view, choice)
     house.dialogue = nil
     if callback then callback(choice, view) end
-  end)
+  end, { portrait_mode = "house" })
   house.dialogue.width, house.dialogue.height = 1280, 720
 end
 
@@ -61,12 +61,6 @@ function Story:enter_house(house)
       local decision = assert(choice and choice.action)
       local ok, err = flow:record_car_decision(decision)
       assert(ok, err)
-      context.progress:set_flag("car_sold", decision ~= "keep")
-      if decision ~= "keep" then
-        local amount = context.rules.car_debt_percentage or 0
-        context.progress:set_value("debt_percentage", math.min(100,
-          context.progress:get_value("debt_percentage") + amount))
-      end
       self:finish_day()
     end)
   elseif (day == 1 or day == 2) and games == 3 then

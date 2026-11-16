@@ -323,10 +323,10 @@ local function en_pantalla(...)
 end
 
 entrar(30)
-assert(en_pantalla("Dinero: 30 M", "Jugadas: 0 de 3"), "al entrar se ve el dinero y las jugadas")
+assert(en_pantalla("Jugadas: 0 de 3"), "el salon muestra las jugadas; el HUD global muestra deuda y familia")
 jugar_veces(1)
 contexto.economy:spend_money(2)
-assert(en_pantalla("Dinero: 28 M", "Jugadas: 1 de 3"), "muestra el dinero y las jugadas del dia")
+assert(en_pantalla("Jugadas: 1 de 3"), "actualiza las jugadas del dia")
 
 local function reentrar()
   casino:leave()

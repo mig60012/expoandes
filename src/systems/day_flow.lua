@@ -62,10 +62,6 @@ function DayFlow:record_work()
   end
   self.decisions.worked = true
   self.decisions.spent_time_with_family = false
-  local rules = self.context.rules or {}
-  local payment = rules.work_debt_percentage or 0
-  local current = self.context.progress:get_value("debt_percentage") or 0
-  self.context.progress:set_value("debt_percentage", math.min(100, current + payment))
 end
 
 function DayFlow:record_family_time()
@@ -87,25 +83,29 @@ end
 
 function DayFlow:record_economic_decision(decision)
   assert(self.day == 5, "Economic decision belongs to day 5")
+  if self.decisions.economic_decision then
+    return false, "Economic decision was already recorded"
+  end
   local ok, result = StoryOutcomes.resolve_n5(self.context, decision)
   if not ok then
     return false, result
   end
   self.decisions.economic_decision = decision
   local rules = self.context.rules or {}
-  local payments = {
-    mortgage = rules.mortgage_debt_percentage or 0,
-    daughter_savings = rules.daughter_savings_debt_percentage or 0,
+  local proceeds = {
+    mortgage = rules.house_sale_value or 15,
+    daughter_savings = rules.daughter_savings_value or 10,
     none = 0,
   }
-  local current = self.context.progress:get_value("debt_percentage") or 0
-  self.context.progress:set_value("debt_percentage",
-    math.min(100, current + payments[decision]))
+  if decision == "mortgage" then self.context.progress:set_flag("house_mortgaged", true) end
+  if decision == "daughter_savings" then self.context.progress:set_flag("daughter_savings_used", true) end
+  if self.context.economy then self.context.economy:add_money(proceeds[decision]) end
   return true, result
 end
 
 function DayFlow:record_car_decision(decision)
   assert(self.day == 3, "Car decision belongs to day 3")
+  if self.decisions.car_decision then return false, "Car decision was already recorded" end
   assert(decision == "sell_known" or decision == "sell_unknown" or decision == "keep",
     "Unknown car decision: " .. tostring(decision))
 
@@ -124,6 +124,11 @@ function DayFlow:record_car_decision(decision)
   local ok, result = StoryOutcomes.resolve_n3(self.context, self.decisions)
   if not ok then
     return false, result
+  end
+  self.decisions.car_decision = decision
+  self.context.progress:set_flag("car_sold", sold)
+  if sold and self.context.economy then
+    self.context.economy:add_money((self.context.rules or {}).car_sale_value or 10)
   end
   return true, result
 end

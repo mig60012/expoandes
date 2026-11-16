@@ -19,12 +19,12 @@ function View.layout(w, h, choices, lines)
   local panel_height = gap * 2 + header + gap * 0.5 + text_height + options_height + gap * 0.7 + hint
   local panel_y = h - gap - panel_height
   local portrait_y = h * 0.07
-  local portrait_height = math.min(h * 0.52, panel_y - portrait_y - gap * 1.5)
+  local portrait_height = panel_y - portrait_y
   local text_y = panel_y + gap + header + gap * 0.5
   local result = {
     portraits = {
-      { x = w * 0.08, y = portrait_y, w = w * 0.29, h = portrait_height },
-      { x = w * 0.63, y = portrait_y, w = w * 0.29, h = portrait_height },
+      { x = w * 0.08, y = portrait_y, w = w * 0.29, h = portrait_height, screen_h = h },
+      { x = w * 0.63, y = portrait_y, w = w * 0.29, h = portrait_height, screen_h = h },
     },
     panel = { x = margin, y = panel_y, w = w - margin * 2, h = panel_height },
     choices = {}, text_width = w - margin * 2 - gap * 2,
@@ -46,11 +46,21 @@ end
 function View.new(context, source, on_finished, options)
   return setmetatable({ dialogue = source and Dialogue.new(source, context), active = source ~= nil,
     selected = 1, page = 1, on_finished = on_finished, black = options and options.black,
+    portrait_mode = options and options.portrait_mode,
     last_choice = nil, partner = false }, View)
 end
 
 function View:is_active() return self.active end
 function View:update(_dt) end
+
+function View:uses_asset(name)
+  if self.black then return false end
+  if name == "Protagonista" then
+    return self.portrait_mode == "house" or self.partner == "Vagabundo"
+      or (self.portrait_mode == "transition" and self.dialogue:current_speaker() == "Protagonista")
+  end
+  return self.portrait_mode == "house" and (name == "Esposa" or name == "Hija")
+end
 
 function View:_refresh(w, h)
   if not self.active then return end
@@ -157,8 +167,12 @@ function View:draw(w, h)
     g.printf(ayuda(#choices > 0), 0, h * (#choices > 0 and 0.96 or 0.87), w, "center")
   else
     local layout = self:_layout(#choices)
-    Characters.draw("Protagonista", layout.portraits[1], speaker == "Protagonista", self.font)
-    if self.partner then Characters.draw(self.partner, layout.portraits[2], speaker == self.partner, self.font) end
+    Characters.draw("Protagonista", layout.portraits[1], speaker == "Protagonista", self.font,
+      self:uses_asset("Protagonista"))
+    if self.partner then
+      Characters.draw(self.partner, layout.portraits[2], speaker == self.partner, self.font,
+        self:uses_asset(self.partner))
+    end
     local panel = layout.panel
     g.setColor(0.06, 0.075, 0.11, 0.98)
     g.rectangle("fill", panel.x, panel.y, panel.w, panel.h, 10, 10)

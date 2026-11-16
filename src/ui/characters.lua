@@ -5,30 +5,68 @@ local colors = {
   Hija = { 0.45, 0.62, 0.36 }, Vagabundo = { 0.58, 0.43, 0.28 },
   ["Gota a gota"] = { 0.43, 0.31, 0.52 },
 }
+local portrait_paths = {
+  Protagonista = "assets/personajes/protagonista.png",
+  Esposa = "assets/personajes/esposa.png",
+  Hija = "assets/personajes/hija.png",
+}
+local portrait_cache = {}
 
-function Characters.draw(name, bounds, speaking, font)
+local height_rules = {
+  Protagonista = { screen = 0.70, available = 1.00 },
+  Esposa = { screen = 0.58, available = 0.88 },
+  Hija = { screen = 0.54, available = 0.82 },
+}
+
+local function model_bounds(name, bounds)
+  local rule = height_rules[name] or { screen = 0.62, available = 0.90 }
+  local screen_h = bounds.screen_h or (bounds.y + bounds.h)
+  local height = math.min(screen_h * rule.screen, bounds.h * rule.available)
+  return { x = bounds.x, y = bounds.y + bounds.h - height, w = bounds.w, h = height }
+end
+Characters.model_bounds = model_bounds
+
+local function portrait(name)
+  if portrait_cache[name] ~= nil then return portrait_cache[name] or nil end
+  local path = portrait_paths[name]
+  if not path then portrait_cache[name] = false; return nil end
+  local ok, image = pcall(love.graphics.newImage, path)
+  portrait_cache[name] = ok and image or false
+  return portrait_cache[name] or nil
+end
+
+local function draw_asset(name, bounds, speaking, font)
+  local g, image = love.graphics, portrait(name)
+  if not image then return false end
+  local x, y, w, h = bounds.x, bounds.y, bounds.w, bounds.h
+  -- La altura narrativa manda; el ancho conserva la proporcion original y
+  -- puede ocupar el espacio transparente entre ambos personajes.
+  local scale = h / image:getHeight()
+  local draw_w, draw_h = image:getWidth() * scale, image:getHeight() * scale
+  g.setColor(1, 1, 1, speaking and 1 or 0.58)
+  -- El ultimo pixel visible queda apoyado directamente sobre el dialogo.
+  g.draw(image, x + (w - draw_w) / 2, y + h - draw_h, 0, scale, scale)
+  return true
+end
+
+function Characters.draw(name, bounds, speaking, font, use_asset)
+  bounds = model_bounds(name, bounds)
+  if use_asset and draw_asset(name, bounds, speaking, font) then return end
   local g = love.graphics
   local c = colors[name] or colors.Protagonista
   local x, y, w, h = bounds.x, bounds.y, bounds.w, bounds.h
-  g.setColor(0.035, 0.045, 0.065, 0.88)
-  g.rectangle("fill", x, y, w, h, 12, 12)
   g.setColor(c[1], c[2], c[3], speaking and 1 or 0.55)
-  g.setLineWidth(speaking and 3 or 1)
-  g.rectangle("line", x, y, w, h, 12, 12)
   local cx, radius = x + w / 2, math.min(w * 0.17, h * 0.13)
-  local head_y = y + h * 0.24
+  local head_y = y + h * 0.20
   g.setColor(0.76, 0.65, 0.54, speaking and 1 or 0.65)
   g.circle("fill", cx, head_y, radius)
   g.setColor(c[1], c[2], c[3], speaking and 1 or 0.65)
-  g.rectangle("fill", cx - w * 0.22, head_y + radius + 6, w * 0.44, h * 0.31, 10, 10)
-  g.rectangle("fill", cx - w * 0.28, head_y + radius + 15, w * 0.10, h * 0.30, 8, 8)
-  g.rectangle("fill", cx + w * 0.18, head_y + radius + 15, w * 0.10, h * 0.30, 8, 8)
+  g.rectangle("fill", cx - w * 0.22, head_y + radius + 6, w * 0.44, h * 0.34, 10, 10)
+  g.rectangle("fill", cx - w * 0.28, head_y + radius + 15, w * 0.10, h * 0.34, 8, 8)
+  g.rectangle("fill", cx + w * 0.18, head_y + radius + 15, w * 0.10, h * 0.34, 8, 8)
   g.setColor(0.16, 0.18, 0.23, 1)
-  g.rectangle("fill", cx - w * 0.19, y + h * 0.63, w * 0.16, h * 0.20)
-  g.rectangle("fill", cx + w * 0.03, y + h * 0.63, w * 0.16, h * 0.20)
-  g.setFont(font)
-  g.setColor(1, 1, 1, 1)
-  g.printf(name, x + 6, y + h - font:getHeight() - 14, w - 12, "center")
+  g.rectangle("fill", cx - w * 0.19, y + h * 0.64, w * 0.16, h * 0.36)
+  g.rectangle("fill", cx + w * 0.03, y + h * 0.64, w * 0.16, h * 0.36)
 end
 
 function Characters.has_car(context)

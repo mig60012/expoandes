@@ -224,17 +224,21 @@ local function dibujar_aviso(objeto, fuente)
   love.graphics.print(texto, objeto.x - ancho / 2 + 15, objeto.y - ALTURA_AVISO - alto + 7)
 end
 
-local function dibujar_marcador(fuente, dinero, jornada)
-  local lineas = { "Dinero: " .. dinero .. " M", "Jugadas: " .. jornada.jugadas .. " de " .. jornada.maximo }
+local function dibujar_marcador(fuente, jornada)
+  local lineas = { "Jugadas: " .. jornada.jugadas .. " de " .. jornada.maximo }
   local renglon = fuente:getHeight()
-  local margen = renglon * 0.6
-  local ancho = math.max(fuente:getWidth(lineas[1]), fuente:getWidth(lineas[2])) + margen * 2
+  local margen = math.max(6, renglon * 0.45)
+  local ancho = 0
+  for _, linea in ipairs(lineas) do ancho = math.max(ancho, fuente:getWidth(linea)) end
+  ancho = ancho + margen * 2
+  local alto = renglon * #lineas + margen * 2
+  local y = love.graphics.getHeight() - alto - margen
   love.graphics.setFont(fuente)
-  love.graphics.setColor(PERSONAJE)
-  love.graphics.rectangle("fill", margen, margen, ancho, renglon * #lineas + margen * 2)
+  love.graphics.setColor(0.08, 0.09, 0.11, 0.82)
+  love.graphics.rectangle("fill", margen, y, ancho, alto, 5, 5)
   love.graphics.setColor(PISO)
   for i, linea in ipairs(lineas) do
-    love.graphics.print(linea, margen * 2, margen * 2 + renglon * (i - 1))
+    love.graphics.print(linea, margen * 2, y + margen + renglon * (i - 1))
   end
 end
 
@@ -261,6 +265,7 @@ function casino:enter(context)
   self.sub_estado:enter(context)
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
+  self.fuente_marcador = love.graphics.newFont(math.max(11, math.floor(love.graphics.getHeight() * 0.018)))
   self.arte = cargar_imagen(Plano.arte.ruta)
   self.fotos = self.arte and {} or cargar_fotos()
   self.mapa = dibujar_mapa(self.fuente, self.fotos, self.arte)
@@ -309,7 +314,7 @@ function casino:leave()
   if self.sub_estado then
     self.sub_estado:leave()
   end
-  self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
+  self.context, self.fuente, self.fuente_dialogo, self.fuente_marcador, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
   self.arte = nil
   self.jornada, self.historial = nil
@@ -474,6 +479,7 @@ end
 function casino:draw()
   if self.sub_estado.current then
     self.sub_estado:draw()
+    dibujar_marcador(self.fuente_marcador, self.jornada)
     if self.dialogo then
       local ancho, alto = love.graphics.getDimensions()
       self.dialogo:draw(ancho, alto, self.fuente_dialogo)
@@ -502,7 +508,7 @@ function casino:draw()
   end
   self.camara:detach()
   local ancho, alto = love.graphics.getDimensions()
-  dibujar_marcador(self.fuente_dialogo, self.context.economy:get_money(), self.jornada)
+  dibujar_marcador(self.fuente_marcador, self.jornada)
   if self.dialogo then
     self.dialogo:draw(ancho, alto, self.fuente_dialogo)
   end
