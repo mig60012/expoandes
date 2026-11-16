@@ -1,5 +1,7 @@
 local transicion = {}
-local player = love.graphics.newImage("assets/ugandan_knuckles.png")
+local Characters = require("src/ui/characters")
+local StoryView = require("src/ui/story_dialogue")
+local Mando = require("src/systems/mando")
 local filtro_add_tarde = love.graphics.newImage("assets/transicion/Filtro_add(tarde).PNG")
 local filtro_add_siempre = love.graphics.newImage("assets/transicion/filtro_add_siempre.PNG")
 local filtro_color_burn = love.graphics.newImage("assets/transicion/Filtro_color_burn.PNG")
@@ -22,12 +24,11 @@ local function get_scene_layout(bg, w, h)
   return x, scale
 end
 
-local function draw_scene(bg, w, h)
+local function draw_scene(bg, w, h, context, facing)
   local x, scale = get_scene_layout(bg, w, h)
   love.graphics.draw(bg, x, 0, 0, scale, scale)
 
-  local ph = player:getHeight()
-  love.graphics.draw(player, x + player_pos * scale, h * 0.73, 0, (h / ph) / 6)
+  Characters.world(x + player_pos * scale, h * 0.73, h / 6, Characters.has_car(context), facing)
 end
 
 local function door_label_rect(door, x, scale, w)
@@ -171,7 +172,9 @@ end
 function transicion:enter(context, from_casa)
   self.context = context
   self.transition_error = nil
-  if from_casa then
+  local from_house = from_casa or context.state_machine.last == "casa"
+  self.facing = from_house and 1 or -1
+  if from_house then
     player_pos = 100
   elseif context.state_machine.last == "casa" then
     player_pos = doors[1].x
@@ -189,7 +192,11 @@ function transicion:enter(context, from_casa)
       filename = "day_4_transition.lua"
     end
   end
-  self.dialogue = DialogueView.new(context, filename)
+  if context.story then
+    self.dialogue = StoryView.new(context, context.story:street(from_house))
+  else
+    self.dialogue = DialogueView.new(context, filename)
+  end
   self.shader = create_shader()
   self.vignette_shader = create_vignette_shader()
   --self.vignette_shader = vig_shader()
@@ -197,15 +204,19 @@ end
 
 function transicion:update(dt)
   self.dialogue:update(dt)
+  if self.dialogue:is_active() then return end
   local dir = 0
   local _, h = love.graphics.getDimensions()
+  local speed = Characters.travel_speed(self.context, h)
   if love.keyboard.isDown("a") then
-    dir = dir - (h / 4) * dt
+    dir = dir - speed * dt
   end
   if love.keyboard.isDown("d") then
-    dir = dir + (h / 4) * dt
+    dir = dir + speed * dt
   end
-  player_pos = player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)
+  if dir ~= 0 then self.facing = dir < 0 and -1 or 1 end
+  player_pos = math.max(0, math.min(manana_bg:getWidth() - 50,
+    player_pos + dir * (love.keyboard.isDown("h") and 20 or 1)))
   if not light_flickering then
     if love.math.random() > 0.99 then
       light_flickering = true
@@ -247,8 +258,8 @@ function transicion:update(dt)
   end
 end
 
-function transicion:keypressed(key)
-  self.dialogue:keypressed(key)
+function transicion:keypressed(key, scancode, isrepeat)
+  self.dialogue:keypressed(key, scancode, isrepeat)
   if key == "c" and not self.dialogue:is_active() then
     self.context.state_machine:switch("casino")
   end
@@ -273,6 +284,10 @@ end
 
 function transicion:mousepressed(x, y, button)
   if button ~= 1 then return end
+  if self.context.story and self.dialogue:is_active() then
+    self.dialogue:mousepressed(x, y, button)
+    return
+  end
   local door = self:door_at(x, y)
   if door then self.context.state_machine:switch(door.state) end
 end
@@ -289,7 +304,7 @@ function transicion:draw()
   love.graphics.setBlendMode("alpha")
   love.graphics.setShader()
   love.graphics.setColor(1, 1, 1, 1)
-  draw_scene(bg, w, h)
+  draw_scene(bg, w, h, self.context, self.facing)
   love.graphics.setCanvas()
   self.current = self.canvas_a
 
@@ -319,6 +334,17 @@ function transicion:draw()
   love.graphics.setBlendMode("alpha")
   love.graphics.pop()
   self.dialogue:draw()
+  if not self.dialogue:is_active() then
+    self.fuente_ayuda = self.fuente_ayuda or love.graphics.newFont(math.max(16, math.floor(h * 0.028)))
+    local texto = Mando.boton("correr") .. " · " .. (Characters.has_car(self.context) and "Acelerar" or "Correr")
+    local ancho, alto = self.fuente_ayuda:getWidth(texto) + 32, self.fuente_ayuda:getHeight() + 14
+    love.graphics.setColor(0, 0, 0, 0.55)
+    love.graphics.rectangle("fill", (w - ancho) / 2, h - alto - 24, ancho, alto, 8)
+    love.graphics.setColor(1, 1, 1, 0.9)
+    love.graphics.setFont(self.fuente_ayuda)
+    love.graphics.printf(texto, 0, h - alto - 17, w, "center")
+    love.graphics.setColor(1, 1, 1, 1)
+  end
   if self.transition_error then
     love.graphics.setColor(1, 0.35, 0.35, 1)
     love.graphics.print(self.transition_error, 20, h - 30)

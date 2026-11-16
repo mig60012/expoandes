@@ -152,7 +152,8 @@ junto_a("ruleta")
 pulsar("z")
 assert(mensaje() == "El mínimo de esta mesa es 1 M y tienes 0 M.", "sin dinero no se sienta en ninguna mesa")
 pulsar("z", "f1")
-assert(contexto.economy:get_money() == 3, "F1 da 3 M de prueba en el salon")
+assert(contexto.economy:get_money() == 0, "main ya no regala dinero con F1 en el salon")
+contexto.economy:add_money(3)
 pulsar("z")
 assert(casino.sub_estado.current_name == "ruleta", "con el dinero de prueba ya puede sentarse")
 
@@ -242,7 +243,7 @@ pulsar("z")
 mesa().opciones.al_jugar(2)
 levantarse()
 pulsar("f1")
-assert(historial() == "entrar, sentarse ruleta, apuesta ruleta 2, dinero_prueba 3", "anota lo que pasa: " .. historial())
+assert(historial() == "entrar, sentarse ruleta, apuesta ruleta 2", "anota lo que pasa: " .. historial())
 
 entrar(2)
 junto_a("poker")
@@ -251,7 +252,7 @@ assert(historial() == "entrar, rechazo poker", "anota el rechazo: " .. historial
 
 local function salir_por_la_puerta()
   casino.en_puerta = false
-  casino.jugador.x, casino.jugador.y = 1925, 810
+  casino.jugador.x, casino.jugador.y = Plano.puerta.centro.x, Plano.puerta.centro.y
   casino:update(0)
   pulsar("return")
   return contexto.time_of_day
@@ -298,7 +299,7 @@ entrar(30)
 jugar_veces(3)
 casino:update(0)
 pulsar("down", "return")
-casino.jugador.x, casino.jugador.y = 1925, 810
+casino.jugador.x, casino.jugador.y = Plano.puerta.centro.x, Plano.puerta.centro.y
 casino:update(0)
 pulsar("down", "return")
 assert(contexto.time_of_day == 0 and casino.dialogo == nil, "responder No no cambia la hora")
@@ -343,6 +344,7 @@ reentrar()
 assert(casino.jornada.jugadas == 1 and progreso:get_value("casino_games_today") == 1,
   "volver al casino conserva el contador")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.92), "volver conserva el cansancio")
+contexto.economy:add_money(3)
 jugar_veces(2)
 reentrar()
 casino:update(0)
@@ -368,6 +370,7 @@ assert(casino.jornada.jugadas == 5 and casino.jornada.maximo == 6 and casino.dec
   "conserva la segunda tanda y sus cinco juegos")
 assert(not casino:puede_salir() and contexto.time_of_day == 2, "mantiene el compromiso y la noche")
 assert(cerca(casino.jugador.velocidad, RAPIDEZ * 0.60), "conserva el cansancio de cinco juegos")
+contexto.economy:add_money(3)
 jugar_veces(1)
 casino:update(0)
 salir_por_la_puerta()

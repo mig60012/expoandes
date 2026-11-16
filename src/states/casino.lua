@@ -10,6 +10,7 @@ local CasinoStateMachine = require("src/states/casino/state_machine")
 local Poker = require("src/states/casino/poker/poker")
 local Blackjack = require("src/states/casino/blackjack/blackjack")
 local Ruleta = require("src/states/casino/ruleta/ruleta")
+local Mando = require("src/systems/mando")
 
 local casino = {}
 
@@ -44,32 +45,106 @@ local function figura(poligono, color, borde)
   end
 end
 
+local function cargar_imagen(ruta)
+  local ok, imagen = pcall(love.graphics.newImage, ruta)
+  return ok and imagen or nil
+end
+
 local function cargar_fotos()
   local fotos = {}
   for _, objeto in ipairs(Plano.objetos) do
-    if objeto.foto then
-      local ok, imagen = pcall(love.graphics.newImage, CARPETA_FOTOS .. objeto.foto.archivo .. ".png")
-      if ok then
-        fotos[objeto] = imagen
-      end
+    local foto = objeto.foto
+    if foto then
+      fotos[objeto] = cargar_imagen(CARPETA_FOTOS .. foto.archivo .. ".png")
     end
   end
   return fotos
 end
 
-local function dibujar_mesa(objeto, imagen)
-  local foto = objeto.foto
+local function capa_de_mesa(objeto, mapa)
+  local vertices = {}
+  for _, triangulo in ipairs(love.math.triangulate(objeto.silueta or objeto.choque)) do
+    for i = 1, #triangulo, 2 do
+      local x, y = triangulo[i], triangulo[i + 1]
+      vertices[#vertices + 1] = { x, y, x / Plano.ancho, y / Plano.alto }
+    end
+  end
+  local malla = love.graphics.newMesh(vertices, "triangles", "static")
+  if malla then malla:setTexture(mapa) end
+  return malla
+end
+
+local function base_mas_baja(poligono, desde, hasta)
+  local maximo = -math.huge
+  local j = #poligono - 1
+  for i = 1, #poligono, 2 do
+    local ax, ay, bx, by = poligono[j], poligono[j + 1], poligono[i], poligono[i + 1]
+    local izquierda, derecha = math.max(math.min(ax, bx), desde), math.min(math.max(ax, bx), hasta)
+    if izquierda <= derecha then
+      for _, x in ipairs({ izquierda, derecha }) do
+        local y = ax == bx and math.max(ay, by) or ay + (by - ay) * (x - ax) / (bx - ax)
+        maximo = math.max(maximo, y)
+      end
+    end
+    j = i
+  end
+  return maximo
+end
+
+local function tapa_al_jugador(objeto, jugador)
+  if not objeto.silueta then return jugador:detras_de(objeto) end
+  local medio = Plano.jugador.alto * 0.18
+  return jugador.y < base_mas_baja(objeto.silueta, jugador.x - medio, jugador.x + medio)
+end
+
+local function dibujar_mesa(objeto, imagen, con_arte)
   love.graphics.setColor(1, 1, 1)
+  if con_arte then
+    love.graphics.draw(imagen)
+    return
+  end
+  local foto = objeto.foto
   love.graphics.draw(imagen, foto.x, foto.y, 0, foto.ancho / imagen:getWidth(), foto.alto / imagen:getHeight())
 end
 
-local function dibujar_mapa(fuente, fotos)
+local function estirar(imagen)
+  love.graphics.draw(imagen, 0, 0, 0, Plano.ancho / imagen:getWidth(), Plano.alto / imagen:getHeight())
+end
+
+local function filtrar(lienzo)
+  local multiplicar = Plano.arte.multiplicar and cargar_imagen(Plano.arte.multiplicar)
+  if multiplicar then
+    local neutro = love.graphics.newCanvas(Plano.ancho, Plano.alto)
+    love.graphics.setCanvas(neutro)
+    love.graphics.clear(1, 1, 1, 1)
+    estirar(multiplicar)
+    love.graphics.setCanvas(lienzo)
+    love.graphics.setBlendMode("multiply", "premultiplied")
+    love.graphics.draw(neutro)
+  end
+  love.graphics.setBlendMode("add")
+  for _, ruta in ipairs(Plano.arte.sumar or {}) do
+    local suma = cargar_imagen(ruta)
+    if suma then estirar(suma) end
+  end
+  love.graphics.setBlendMode("alpha")
+end
+
+local function dibujar_mapa(fuente, fotos, arte)
   local lienzo = love.graphics.newCanvas(Plano.ancho, Plano.alto, { msaa = 4 })
   love.graphics.push("all")
   love.graphics.origin()
   love.graphics.setCanvas(lienzo)
   love.graphics.clear(PISO[1], PISO[2], PISO[3], 1)
   love.graphics.setFont(fuente)
+  if arte then
+    love.graphics.clear(0, 0, 0, 1)
+    love.graphics.setColor(1, 1, 1, 1)
+    estirar(arte)
+    filtrar(lienzo)
+    love.graphics.pop()
+    return lienzo
+  end
   figura(Plano.suelo, PISO)
   for _, capa in ipairs(Plano.capas) do
     figura(capa.puntos, capa.color)
@@ -85,16 +160,63 @@ local function dibujar_mapa(fuente, fotos)
   return lienzo
 end
 
+local PIEL, PELO = { 0.62, 0.5, 0.41 }, { 0.1, 0.08, 0.06 }
+local CAMISA, SOMBRA_CAMISA = { 0.17, 0.33, 0.48 }, { 0.12, 0.24, 0.36 }
+local PANTALON, ZAPATO, CONTORNO = { 0.11, 0.12, 0.16 }, { 0.05, 0.05, 0.06 }, { 0.02, 0.02, 0.03, 0.85 }
+
+local CUERPO = {
+  { PANTALON, { -0.095, 0.5, -0.008, 0.5, -0.018, 0.03, -0.08, 0.03 } },
+  { PANTALON, { 0.008, 0.5, 0.095, 0.5, 0.08, 0.03, 0.018, 0.03 } },
+  { SOMBRA_CAMISA, { -0.125, 0.79, -0.165, 0.74, -0.175, 0.52, -0.14, 0.52, -0.128, 0.7 } },
+  { SOMBRA_CAMISA, { 0.125, 0.79, 0.165, 0.74, 0.175, 0.52, 0.14, 0.52, 0.128, 0.7 } },
+  { CAMISA, { -0.125, 0.8, 0.125, 0.8, 0.135, 0.74, 0.105, 0.5, -0.105, 0.5, -0.135, 0.74 } },
+  { SOMBRA_CAMISA, { 0.03, 0.8, 0.125, 0.8, 0.135, 0.74, 0.105, 0.5, 0.03, 0.5 } },
+  { ZAPATO, { -0.105, 0.53, 0.105, 0.53, 0.105, 0.5, -0.105, 0.5 } },
+  { PIEL, { -0.028, 0.85, 0.028, 0.85, 0.028, 0.79, -0.028, 0.79 } },
+}
+
+local function dibujar_persona(x, y, alto)
+  local function punto(u, v) return x + u * alto, y - v * alto end
+  local function poligono(color, puntos)
+    local pantalla = {}
+    for i = 1, #puntos, 2 do
+      pantalla[i], pantalla[i + 1] = punto(puntos[i], puntos[i + 1])
+    end
+    love.graphics.setColor(color)
+    for _, triangulo in ipairs(love.math.triangulate(pantalla)) do
+      love.graphics.polygon("fill", triangulo)
+    end
+    love.graphics.setColor(CONTORNO)
+    love.graphics.polygon("line", pantalla)
+  end
+  local function ovalo(color, u, v, ru, rv)
+    local cx, cy = punto(u, v)
+    love.graphics.setColor(color)
+    love.graphics.ellipse("fill", cx, cy, ru * alto, rv * alto)
+    love.graphics.setColor(CONTORNO)
+    love.graphics.ellipse("line", cx, cy, ru * alto, rv * alto)
+  end
+  love.graphics.setLineWidth(math.max(1, alto * 0.008))
+  for _, parte in ipairs(CUERPO) do
+    poligono(parte[1], parte[2])
+  end
+  ovalo(ZAPATO, -0.052, 0.022, 0.044, 0.02)
+  ovalo(ZAPATO, 0.052, 0.022, 0.044, 0.02)
+  ovalo(PIEL, -0.158, 0.5, 0.026, 0.028)
+  ovalo(PIEL, 0.158, 0.5, 0.026, 0.028)
+  ovalo(PELO, 0, 0.925, 0.066, 0.064)
+  ovalo(PIEL, 0, 0.893, 0.058, 0.062)
+  ovalo(PELO, 0, 0.95, 0.06, 0.03)
+end
+
 local function dibujar_jugador(jugador)
-  local ancho, alto = Plano.jugador.ancho, Plano.jugador.alto
   love.graphics.setColor(BORDE)
   love.graphics.ellipse("fill", jugador.x, jugador.y, Plano.jugador.radio, Plano.jugador.radio / Plano.estiramiento)
-  love.graphics.setColor(PERSONAJE)
-  love.graphics.rectangle("fill", jugador.x - ancho / 2, jugador.y - alto, ancho, alto)
+  dibujar_persona(jugador.x, jugador.y, Plano.jugador.alto)
 end
 
 local function dibujar_aviso(objeto, fuente)
-  local texto = "Z  " .. objeto.etiqueta
+  local texto = Mando.boton("aceptar") .. "  " .. objeto.etiqueta
   local ancho, alto = fuente:getWidth(texto) + 30, fuente:getHeight() + 14
   love.graphics.setColor(PERSONAJE)
   love.graphics.rectangle("fill", objeto.x - ancho / 2, objeto.y - ALTURA_AVISO - alto, ancho, alto)
@@ -128,8 +250,9 @@ end
 
 function casino:enter(context)
   self.context = context
-  -- Saldo de prueba: cada entrada al salon empieza en cero; F1 agrega dinero.
-  context.economy:spend_money(context.economy:get_money())
+  -- La historia conserva el capital inicial de main y las ganancias. Los
+  -- estados aislados de pruebas mantienen el reinicio de saldo anterior.
+  if not context.day_flow then context.economy:spend_money(context.economy:get_money()) end
   self.sub_estado = CasinoStateMachine.new({
     blackjack = Blackjack,
     poker = Poker,
@@ -138,8 +261,19 @@ function casino:enter(context)
   self.sub_estado:enter(context)
   self.fuente = love.graphics.newFont(TAMANO_LETRA)
   self.fuente_dialogo = love.graphics.newFont(math.max(16, math.floor(love.graphics.getHeight() * 0.032)))
-  self.fotos = cargar_fotos()
-  self.mapa = dibujar_mapa(self.fuente, self.fotos)
+  self.arte = cargar_imagen(Plano.arte.ruta)
+  self.fotos = self.arte and {} or cargar_fotos()
+  self.mapa = dibujar_mapa(self.fuente, self.fotos, self.arte)
+  if self.arte then
+    for _, objeto in ipairs(Plano.objetos) do
+      self.fotos[objeto] = capa_de_mesa(objeto, self.mapa)
+    end
+    for _, obstaculo in ipairs(Plano.obstaculos or {}) do
+      if obstaculo.silueta then
+        self.fotos[obstaculo] = capa_de_mesa(obstaculo, self.mapa)
+      end
+    end
+  end
   self.interactuables = {}
   local poligonos = { Plano.suelo }
   for _, objeto in ipairs(Plano.objetos) do
@@ -147,6 +281,9 @@ function casino:enter(context)
     if objeto.interaccion then
       self.interactuables[#self.interactuables + 1] = objeto
     end
+  end
+  for _, obstaculo in ipairs(Plano.obstaculos or {}) do
+    poligonos[#poligonos + 1] = obstaculo.choque
   end
   self.jugador = Caminante.new({
     x = Plano.inicio.x,
@@ -174,6 +311,7 @@ function casino:leave()
   end
   self.context, self.fuente, self.fuente_dialogo, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
+  self.arte = nil
   self.jornada, self.historial = nil
   self.decision_tomada, self.limite_pendiente = nil, nil
 end
@@ -184,6 +322,10 @@ end
 
 function casino:puede_salir()
   return self.jornada:completa() and self.decision_tomada and not self.limite_pendiente
+end
+
+function casino:usa_cursor()
+  return self.sub_estado ~= nil and self.sub_estado.current ~= nil and not self.dialogo
 end
 
 function casino:abrir(nodo, al_terminar)
@@ -223,6 +365,7 @@ function casino:ofrecer_otro_bloque()
       self.context.time_of_day = NOCHE
       self:anotar("continuar")
     else
+      if self.context.story then self.context.time_of_day = 1 end
       self:anotar("terminar")
     end
     -- Permite volver a usar la puerta aunque la decision ocurra dentro de su zona.
@@ -344,14 +487,14 @@ function casino:draw()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(self.mapa)
   for objeto, imagen in pairs(self.fotos) do
-    if not self.jugador:detras_de(objeto) then
-      dibujar_mesa(objeto, imagen)
+    if not tapa_al_jugador(objeto, self.jugador) then
+      dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
   dibujar_jugador(self.jugador)
   for objeto, imagen in pairs(self.fotos) do
-    if self.jugador:detras_de(objeto) then
-      dibujar_mesa(objeto, imagen)
+    if tapa_al_jugador(objeto, self.jugador) then
+      dibujar_mesa(objeto, imagen, self.arte ~= nil)
     end
   end
   if self.cercano and not self.dialogo then

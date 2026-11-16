@@ -1,11 +1,24 @@
 local animacion = {}
+local View = require("src/ui/story_dialogue")
+local Data = require("src/data/dialogues/historia")
 
-function animacion:enter(context)
+function animacion:enter(context, source, on_finished)
   self.context = context
+  love.mouse.setVisible(true)
+  love.mouse.setGrabbed(false)
+  self.view = View.new(context, source or Data.opening, function()
+    if on_finished then on_finished()
+    else context.state_machine:switch("casa") end
+  end, { black = true })
 end
 
 function animacion:draw()
-  love.graphics.print("Animación - estado pendiente", 20, 20)
+  love.graphics.clear(0, 0, 0, 1)
+  self.view:draw()
 end
+
+function animacion:keypressed(...) self.view:keypressed(...) end
+function animacion:mousepressed(...) self.view:mousepressed(...) end
+function animacion:leave() self.view = nil end
 
 return animacion

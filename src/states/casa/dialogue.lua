@@ -1,4 +1,5 @@
 local Dialogue = require("src/systems/dialogue")
+local Mando = require("src/systems/mando")
 
 local DialogueView = {}
 DialogueView.__index = DialogueView
@@ -90,7 +91,8 @@ function DialogueView:draw()
   end
 
   love.graphics.setColor(0.7, 0.7, 0.7)
-  love.graphics.print(#choices > 0 and "Selecciona una opción" or "Pulsa para continuar", box_x + 24, box_y + box_h - 32)
+  love.graphics.print(Mando.boton("aceptar") .. " · " .. (#choices > 0 and "Elegir" or "Continuar"),
+    box_x + 24, box_y + box_h - 32)
   love.graphics.setColor(1, 1, 1)
 end
 

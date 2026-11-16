@@ -24,6 +24,8 @@ function DayFlow:start_day(day)
   self.finished = false
   self.context.progress:set_value("current_day", day)
   self.context.progress:set_value("casino_games_today", 0)
+  self.context.progress:set_flag("casino_decision_made", false)
+  self.context.progress:set_flag("casino_extra_games_accepted", false)
 end
 
 function DayFlow:is_active()
@@ -50,6 +52,7 @@ function DayFlow:record_games(games)
   self.decisions.spent_time_with_family = games == 3
   self.decisions.worked = false
   self.context.progress:set_value("casino_games_today", games)
+  return true, games
 end
 
 function DayFlow:record_work()
