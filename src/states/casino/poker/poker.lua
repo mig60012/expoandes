@@ -107,13 +107,15 @@ end
 
 local function mesa_layout(width, height)
   return {
-    deck = { x = width * 0.71, y = height * 0.39, scale = 0.94 },
-    community = { x = width / 2, y = height * 0.47, width = 460, scale = 1.10 },
+    -- La mesa grande de main deja que las cartas sean protagonistas. Las
+    -- estadísticas y el botón de manos viven fuera de esta zona.
+    deck = { x = width * 0.73, y = height * 0.42, scale = 1.30 },
+    community = { x = width / 2, y = height * 0.46, width = 510, scale = 1.42 },
     players = {
-      { x = width / 2,    y = height * 0.74, width = 170, scale = 1.07 },
-      { x = width * 0.19, y = height * 0.52, width = 145, scale = 0.98, shear = -0.18 },
-      { x = width / 2,    y = height * 0.25, width = 145, scale = 0.95 },
-      { x = width * 0.81, y = height * 0.52, width = 145, scale = 0.98, shear = 0.18 },
+      { x = width / 2,    y = height * 0.8,  width = 230, scale = 1.92 },
+      { x = width * 0.13, y = height * 0.53, width = 195, scale = 1.20, shear = -0.5 },
+      { x = width / 2,    y = height * 0.2,  width = 180, scale = 0.90 },
+      { x = width * 0.87, y = height * 0.53, width = 195, scale = 1.20, shear = 0.5 },
     },
   }
 end
@@ -293,7 +295,7 @@ function Poker:iniciar_mano()
   preparar_mano(self.comunales, 0)
   self.comunales_reveladas, self.comunales_visibles = 0, 3
   self.holdem_board = {}
-  self.bot_wait, self.bot_index = nil, nil
+  self.bot_wait, self.bot_index, self.action_fx = nil, nil, nil
   self.table_chips, self.pot_chips, self.folded_visuals = {}, {}, {}
   self.round_chips_collected, self.collecting_chips = false, false
   self.showdown_time = nil
@@ -358,8 +360,12 @@ end
 function Poker:crear_fichas_apuesta(indice, amount)
   if amount <= 0 then return end
   local width, height = love.graphics.getDimensions()
-  local anchor_x = width * ({ [1] = 0.50, [2] = 0.31, [3] = 0.50, [4] = 0.69 })[indice]
-  local anchor_y = height * ({ [1] = 0.65, [2] = 0.62, [3] = 0.37, [4] = 0.62 })[indice]
+  local seat = mesa_layout(width, height).players[indice]
+  -- Las ciegas se colocan alrededor del asiento, nunca encima de las cartas.
+  local anchor_x, anchor_y = seat.x, seat.y + 92 * seat.scale
+  if indice == 2 then anchor_x, anchor_y = seat.x + 112 * seat.scale, seat.y + 8 end
+  if indice == 4 then anchor_x, anchor_y = seat.x - 112 * seat.scale, seat.y + 8 end
+  if indice == 3 then anchor_x, anchor_y = seat.x, seat.y - 66 * seat.scale end
   local cantidad = math.min(8, math.max(1, math.ceil(amount / APUESTA_MINIMA)))
   -- Cada pila nueva representa fichas que llegan a la mesa (incluidas las ciegas).
   Audio.reproducir("chip_place")
@@ -395,10 +401,7 @@ function Poker:registrar_accion(player, action)
   if not indice or not action then return end
   self:crear_fichas_apuesta(indice, action.amount or 0)
   -- El sonido de fichas se reproduce en crear_fichas_apuesta().
-  if action.action == "fold" then
-    preparar_mano(self.jugadores[indice], CARTAS_POR_JUGADOR)
-    Audio.reproducir("card_flip")
-  end
+  if action.action == "fold" then self:deslizar_fold(indice) end
 end
 
 function Poker:mover_fichas_al_pozo()
@@ -461,7 +464,7 @@ function Poker:terminar_mano()
   local se_revelan_cartas = false
   for indice, mano in ipairs(self.jugadores) do
     if self.game.players[indice].folded then
-      preparar_mano(mano, CARTAS_POR_JUGADOR)
+      preparar_mano(mano, 0)
     else
       -- Las cartas de los rivales pasan de boca abajo a boca arriba.
       if indice > 1 and not mano.cards[1].visible then se_revelan_cartas = true end
@@ -512,7 +515,7 @@ function Poker:preparar_turno_bot()
 end
 
 function Poker:ejecutar_turno_bot()
-  self.bot_wait, self.bot_index = nil, nil
+  self.bot_wait, self.bot_index, self.action_fx = nil, nil, nil
   local player = self.game:get_current_player()
   if not player or not player.controller then return end
 
@@ -520,6 +523,15 @@ function Poker:ejecutar_turno_bot()
   local action = player.last_action
   if action then
     self:registrar_accion(player, action)
+    if action.action ~= "fold" then
+      self.action_fx = {
+        player = player,
+        action = action.action,
+        amount = action.amount,
+        time = 0,
+        duration = 0.72,
+      }
+    end
     self.input_lock = 0.42
   end
   if self.game.status == "showdown" then
@@ -797,6 +809,10 @@ function Poker:update(dt)
   if self.collecting_chips and not moving_chips then self.collecting_chips = false end
 
   self.visual_pot = lerp(self.visual_pot, self.game.pot, math.min(1, dt * 12))
+  if self.action_fx then
+    self.action_fx.time = self.action_fx.time + dt
+    if self.action_fx.time >= self.action_fx.duration then self.action_fx = nil end
+  end
   if self.showdown_time then self.showdown_time = self.showdown_time + dt end
   self:actualizar_botones()
   local mouse_x, mouse_y = love.mouse.getPosition()
@@ -851,12 +867,53 @@ local function dibujar_fichas_mesa(estado)
 end
 
 local function dibujar_cruz_retirado(seat)
-  love.graphics.setColor(0.98, 0.06, 0.08, 0.96)
-  love.graphics.setLineWidth(math.max(4, 7 * seat.scale))
-  love.graphics.line(seat.x - 38 * seat.scale, seat.y - 30 * seat.scale,
-    seat.x + 38 * seat.scale, seat.y + 30 * seat.scale)
-  love.graphics.line(seat.x + 38 * seat.scale, seat.y - 30 * seat.scale,
-    seat.x - 38 * seat.scale, seat.y + 30 * seat.scale)
+  love.graphics.setColor(0.38, 0.08, 0.09, 0.72)
+  love.graphics.setLineWidth(5)
+  love.graphics.line(seat.x - 38 * seat.scale, seat.y - 34 * seat.scale,
+    seat.x + 38 * seat.scale, seat.y + 34 * seat.scale)
+  love.graphics.line(seat.x + 38 * seat.scale, seat.y - 34 * seat.scale,
+    seat.x - 38 * seat.scale, seat.y + 34 * seat.scale)
+end
+
+local function dibujar_marcador_posicion(game, indice, seat)
+  local x, y = seat.x - 58 * seat.scale, seat.y + 42 * seat.scale
+  if game.dealer_index == indice then
+    love.graphics.setColor(0.56, 0.47, 0.31, 0.95)
+    love.graphics.circle("fill", x, y, 13 * seat.scale)
+    love.graphics.setColor(0.10, 0.08, 0.07, 0.9)
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line", x, y, 9 * seat.scale)
+  elseif game.small_blind_index == indice then
+    love.graphics.setColor(0.24, 0.29, 0.30, 0.95)
+    love.graphics.circle("fill", x, y, 10 * seat.scale)
+  elseif game.big_blind_index == indice then
+    love.graphics.setColor(0.36, 0.22, 0.18, 0.95)
+    love.graphics.circle("fill", x, y, 12 * seat.scale)
+  end
+end
+
+local function dibujar_accion_volando(estado, width, height, layout)
+  local fx = estado.action_fx
+  if not fx then return end
+  local indice
+  for i, player in ipairs(estado.game.players) do
+    if player == fx.player then
+      indice = i
+      break
+    end
+  end
+  local seat = indice and layout.players[indice]
+  if not seat then return end
+  local t = math.min(1, fx.time / fx.duration)
+  local eased = 1 - (1 - t) ^ 3
+  local x = lerp(seat.x, width / 2, eased)
+  local y = lerp(seat.y + 48, height * 0.54, eased) - math.sin(t * math.pi) * 35
+  local color = fx.action == "raise" and { 0.58, 0.39, 0.17, 0.95 }
+      or { 0.34, 0.37, 0.39, 0.9 }
+  love.graphics.setColor(color)
+  love.graphics.ellipse("fill", x, y, 15, 6)
+  love.graphics.setColor(0.04, 0.04, 0.04, 0.7)
+  love.graphics.ellipse("line", x, y, 11, 4)
 end
 
 local function dibujar_jugadores(estado, width, height)
@@ -873,15 +930,18 @@ local function dibujar_jugadores(estado, width, height)
       love.graphics.setColor(0, 0, 0, 0.42)
       love.graphics.ellipse("fill", asiento.x, asiento.y + 42, 84 * asiento.scale, 26 * asiento.scale)
     end
-    love.graphics.setColor(1, 1, 1, player.folded and 0.72 or 1)
-    estado.jugadores[indice]:draw_at(asiento.x, asiento.y, asiento.width,
-      { scale = asiento.scale, shear = asiento.shear, shadow = false })
+    if not player.folded then
+      love.graphics.setColor(1, 1, 1, 1)
+      estado.jugadores[indice]:draw_at(asiento.x, asiento.y, asiento.width, asiento)
+    end
     if player.folded then dibujar_cruz_retirado(asiento) end
+    dibujar_marcador_posicion(estado.game, indice, asiento)
   end
   for _, visual in ipairs(estado.folded_visuals) do
-    visual.card:draw_at(visual.x, visual.y, { scale = visual.scale, rotation = 0.36, shadow = false })
+    visual.card:draw_at(visual.x, visual.y, { scale = visual.scale, rotation = 0.36 })
   end
   dibujar_fichas_mesa(estado)
+  dibujar_accion_volando(estado, width, height, layout)
   love.graphics.setColor(1, 1, 1, 1)
 end
 
