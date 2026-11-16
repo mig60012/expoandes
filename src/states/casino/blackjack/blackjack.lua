@@ -608,8 +608,12 @@ end
 function Blackjack:listo_para_salir()
   return self.jugada_registrada and self.motor.fase == "resultado"
 end
+function Blackjack:puede_abandonar_por_saldo()
+  return self.motor.fase == "resultado"
+    and self.motor:saldo(self.motor.jugadores[1]) < self.motor.minimo
+end
 function Blackjack:puede_salir()
-  return self:listo_para_salir()
+  return self:listo_para_salir() or self:puede_abandonar_por_saldo()
 end
 function Blackjack:puede_repetir()
   return self:puede_salir() and (not self.puede_jugar_casino or self.puede_jugar_casino())
@@ -619,6 +623,12 @@ function Blackjack:salir()
   if not self:puede_salir() then
     self.motor.mensaje = "Debes completar las 2 manos antes de salir."
     return false
+  end
+  if not self.jugada_registrada and self:puede_abandonar_por_saldo() then
+    self.jugada_registrada = true
+    if self.al_jugar then
+      self.al_jugar(self.total_apostado, self.motor:saldo(self.motor.jugadores[1]) < 1)
+    end
   end
   return self.machine:switch(nil)
 end
