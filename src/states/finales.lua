@@ -3,11 +3,13 @@ local FinalData = require("src/data/dialogues/finals")
 local Script = require("src/data/dialogues/historia")
 local View = require("src/ui/story_dialogue")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 
 local Finales = {}
 
 function Finales:enter(context)
   self.context = context
+  Audio.detener_todo()
   self.id = FinalEvaluation.evaluate(context)
   self.data = FinalData[self.id]
   self.font = love.graphics.newFont(28)

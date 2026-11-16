@@ -11,6 +11,7 @@ local Poker = require("src/states/casino/poker/poker")
 local Blackjack = require("src/states/casino/blackjack/blackjack")
 local Ruleta = require("src/states/casino/ruleta/ruleta")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 
 local casino = {}
 
@@ -254,6 +255,9 @@ end
 
 function casino:enter(context)
   self.context = context
+  Audio.iniciar_bucle("casino_music")
+  Audio.iniciar_bucle("casino_ambiente")
+  self.paso_reloj = 0
   -- La historia conserva el capital inicial de main y las ganancias. Los
   -- estados aislados de pruebas mantienen el reinicio de saldo anterior.
   if not context.day_flow then context.economy:spend_money(context.economy:get_money()) end
@@ -311,6 +315,8 @@ function casino:enter(context)
 end
 
 function casino:leave()
+  Audio.reproducir("door_close")
+  Audio.detener_canal("musica")
   if self.sub_estado then
     self.sub_estado:leave()
   end
@@ -462,6 +468,15 @@ function casino:update(dt)
     local dx = (tecla("right", "d") and 1 or 0) - (tecla("left", "a") and 1 or 0)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
     self.jugador:mover(dx, dy, dt)
+    if dx ~= 0 or dy ~= 0 then
+      self.paso_reloj = self.paso_reloj - dt
+      if self.paso_reloj <= 0 then
+        Audio.reproducir("footstep_" .. love.math.random(1, 3), { volumen = 0.65 })
+        self.paso_reloj = 0.38
+      end
+    else
+      self.paso_reloj = 0
+    end
     self.cercano = self.jugador:mas_cercano(self.interactuables, Plano.jugador.alcance)
     local en_puerta = Colision.dentro(self.jugador.x, self.jugador.y, Plano.puerta.zona)
     if en_puerta and not self.en_puerta then

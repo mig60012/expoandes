@@ -1,11 +1,13 @@
 local Trabajo = {}
 local View = require("src/ui/story_dialogue")
 local Data = require("src/data/dialogues/historia")
+local Audio = require("src/systems/audio")
 
 local DURACION = 5
 
 function Trabajo:enter(context)
 	self.context = context
+	Audio.iniciar_bucle("casa_ambiente", { volumen = 0.6 })
 	self.view = nil
 	if context.story then
 		self.view = View.new(context, Data.work, function() context.story:work_complete() end, { black = true })
