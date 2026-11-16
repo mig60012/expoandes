@@ -164,7 +164,7 @@ function Motor:nueva_ronda()
   for _, j in ipairs(self.jugadores) do j.manos, j.dividio, j.accion, j.ganador = {}, false, nil, false end
   if not self:puede_jugar() then self.mensaje = "Ya no quedan jugadas por hoy. Vuelve al casino."
   elseif self:saldo(self.jugadores[1]) < self.minimo then
-    self.mensaje = "Saldo insuficiente: necesitas " .. self.minimo .. " M. F1 agrega 3 M de prueba."
+    self.mensaje = "Saldo insuficiente: necesitas " .. self.minimo .. " M."
   end
   return true
 end
@@ -309,7 +309,7 @@ function Motor:liquidar()
   self.fase, self.turno, self.indice_mano = "resultado", nil, nil
   self.mensaje = "Ronda terminada. Los pagos ya están incluidos en los saldos."
   if self:saldo(self.jugadores[1]) < self.minimo then
-    self.mensaje = "Saldo insuficiente para otra mano (mínimo " .. self.minimo .. " M). F1 agrega 3 M."
+    self.mensaje = "Saldo insuficiente para otra mano (mínimo " .. self.minimo .. " M)."
   elseif not self:puede_jugar() then
     self.mensaje = "Ronda liquidada. Completaste las jugadas disponibles; vuelve al casino."
   end
@@ -360,9 +360,40 @@ function Vista.escala()
   local s = math.min(w / ANCHO, h / ALTO)
   return s, (w - ANCHO * s) / 2, (h - ALTO * s) / 2
 end
+local function estirada(g, ruta, w, h)
+  local imagen = g.newImage(ruta)
+  g.draw(imagen, 0, 0, 0, w / imagen:getWidth(), h / imagen:getHeight())
+end
+local function fondo_filtrado(g)
+  local fondo = g.newImage("assets/casino/blackjack/fondo_blackjack.png")
+  local w, h = fondo:getWidth(), fondo:getHeight()
+  local lienzo, neutro = g.newCanvas(w, h), g.newCanvas(w, h)
+  if not lienzo then return fondo end
+  g.push("all")
+  g.origin()
+  g.setBlendMode("alpha")
+  g.setColor(1, 1, 1, 1)
+  g.setCanvas(neutro)
+  g.clear(1, 1, 1, 1)
+  estirada(g, "assets/casino/filtro_multiply_mitad.png", w, h)
+  g.setCanvas(lienzo)
+  g.clear(0, 0, 0, 1)
+  g.draw(fondo)
+  g.setBlendMode("add")
+  g.setColor(0.62, 0.52, 0.46, 0.72)
+  estirada(g, "assets/casino/filtro_add_primero.png", w, h)
+  g.setColor(1, 1, 1, 1)
+  g.setBlendMode("multiply", "premultiplied")
+  g.draw(neutro)
+  g.setBlendMode("add")
+  g.setColor(0.62, 0.52, 0.46, 0.72)
+  estirada(g, "assets/casino/filtro_add_ultimo.png", w, h)
+  g.pop()
+  return lienzo
+end
 function Vista.recursos()
   local g = love.graphics
-  local r = { fondo = g.newImage("assets/casino/blackjack/fondo_blackjack.png"),
+  local r = { fondo = fondo_filtrado(g),
     titulo = g.newFont("assets/AntonSC-Regular.ttf", 44),
     texto = g.newFont("assets/AntonSC-Regular.ttf", 20),
     chica = g.newFont("assets/AntonSC-Regular.ttf", 16),
@@ -375,7 +406,7 @@ function Vista.recursos()
   return r
 end
 function Vista.botones(m, puede_salir)
-  local botones = { { id = "salir", texto = puede_salir and "Esc · Volver al casino" or "Salida: completa 2 manos", x = 1010, y = 26, w = 244, h = 48,
+  local botones = { { id = "salir", texto = puede_salir and "Volver al casino" or "Juega 2 manos para salir", x = 1010, y = 26, w = 244, h = 48,
     color = { 0.28, 0.10, 0.13 }, activo = puede_salir == true } }
   local function agregar(id, texto, x, w, activo)
     local colores = {
@@ -391,15 +422,15 @@ function Vista.botones(m, puede_salir)
     local saldo = m:saldo(m.jugadores[1])
     agregar("menos", "−", 325, 64, m.monto > m.minimo)
     agregar("mas", "+", 405, 64, m.monto + m.incremento <= saldo)
-    agregar("confirmar", "Confirmar apuesta · Enter", 490, 465,
+    agregar("confirmar", "Apostar", 490, 465,
       m:puede_jugar() and Reglas.apuesta(m.monto, saldo, m.minimo, m.incremento))
   elseif m.fase == "resultado" then
-    agregar("siguiente", "Siguiente ronda · Enter", 450, 380, m:puede_jugar() and m:saldo(m.jugadores[1]) >= m.minimo)
+    agregar("siguiente", "Siguiente ronda", 450, 380, m:puede_jugar() and m:saldo(m.jugadores[1]) >= m.minimo)
   else
     local v = m:validas(1)
-    agregar("pedir", "Pedir · P", 280, 220, v.pedir)
-    agregar("plantarse", "Plantarse · S", 530, 220, v.plantarse)
-    agregar("dividir", "Dividir · D", 780, 220, v.dividir)
+    agregar("pedir", "Pedir", 280, 220, v.pedir)
+    agregar("plantarse", "Plantarse", 530, 220, v.plantarse)
+    agregar("dividir", "Dividir", 780, 220, v.dividir)
   end
   return botones
 end
@@ -440,8 +471,8 @@ function Vista.fichas(r, jugador, x, y, avance)
 end
 function Vista.opciones_sesion(estado)
   return {
-    { id = "salir", texto = "Esc · Volver al casino", x = 310, y = 420, w = 300, h = 56, activo = true },
-    { id = "repetir", texto = "R · Jugar otras 2 manos", x = 670, y = 420, w = 300, h = 56,
+    { id = "salir", texto = "Volver al casino", x = 310, y = 420, w = 300, h = 56, activo = true },
+    { id = "repetir", texto = "Jugar otras 2 manos", x = 670, y = 420, w = 300, h = 56,
       activo = estado:puede_repetir() },
   }
 end
@@ -537,7 +568,7 @@ function Vista.dibujar(r, m, estado)
     local aviso = "El siguiente juego cuenta como otra jugada al completar sus 2 manos."
     if estado.puede_jugar_casino and not estado.puede_jugar_casino() then
       aviso = "Llegaste al limite del casino. Debes volver al salon."
-    elseif not estado:puede_repetir() then aviso = "Saldo insuficiente. F1 agrega 3 M de prueba." end
+    elseif not estado:puede_repetir() then aviso = "Saldo insuficiente." end
     texto(r, aviso, 290, 382, 700, "chica", ORO)
     for i, b in ipairs(Vista.opciones_sesion(estado)) do
       g.setColor(b.activo and { 0.16, 0.31, 0.31 } or { 0.15, 0.16, 0.17 })
@@ -547,9 +578,7 @@ function Vista.dibujar(r, m, estado)
       g.rectangle("line", b.x, b.y, b.w, b.h, 13)
       texto(r, b.texto, b.x, b.y + 17, b.w, "chica", b.activo and TEXTO or { 0.45, 0.45, 0.45 })
     end
-    texto(r, "← / → elige · Enter confirma", 290, 501, 700, "chica")
   end
-  texto(r, "Natural 3:2 · Victoria 1:1 · Una división · Ases divididos: una carta · ← / → apuesta · F1: +3 M (prueba)", 40, 771, 1200, "chica")
   g.pop()
 end
 

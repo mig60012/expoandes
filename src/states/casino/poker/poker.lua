@@ -6,6 +6,7 @@ local PokerGame = require("src/systems/poker_game")
 local HoldemCard = require("holdem.card")
 local Analysis = require("holdem.analysis")
 local Audio = require("src/systems/audio")
+local Mando = require("src/systems/mando")
 
 local ATLAS = "assets/casino/poker/cards_atlas.png"
 local LIGHT = love.graphics.newImage("assets/casino/poker/light_poker.png")
@@ -946,8 +947,8 @@ function Poker:draw()
   love.graphics.draw(self.current, 0, 0)
   love.graphics.setFont(self.fuente_ui)
   love.graphics.setColor(1, 1, 1, 1)
-  local aviso = self.jugada_registrada and "Esc: volver al casino"
-    or "Completa un juego de 3 manos antes de salir"
+  local aviso = self.jugada_registrada and (Mando.boton("volver") .. " · Volver al casino")
+    or "Juega 3 manos para salir"
   love.graphics.printf(aviso, 0, 12, width, "center")
   love.graphics.pop()
 end

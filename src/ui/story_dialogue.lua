@@ -1,7 +1,12 @@
 local Dialogue = require("src/systems/dialogue")
 local Characters = require("src/ui/characters")
+local Mando = require("src/systems/mando")
 local View = {}
 View.__index = View
+
+local function ayuda(eligiendo)
+  return Mando.boton("aceptar") .. " · " .. (eligiendo and "Elegir" or "Continuar")
+end
 
 function View.layout(w, h, choices, lines)
   local margin = w * 0.05
@@ -149,8 +154,7 @@ function View:draw(w, h)
       end
     end
     g.setColor(0.8, 0.8, 0.85, 1)
-    g.printf(#choices > 0 and "↑ / ↓ · Elegir    Enter / Espacio / Z · Confirmar" or "Enter / Espacio / Z · Continuar",
-      0, h * (#choices > 0 and 0.96 or 0.87), w, "center")
+    g.printf(ayuda(#choices > 0), 0, h * (#choices > 0 and 0.96 or 0.87), w, "center")
   else
     local layout = self:_layout(#choices)
     Characters.draw("Protagonista", layout.portraits[1], speaker == "Protagonista", self.font)
@@ -179,9 +183,8 @@ function View:draw(w, h)
     end
     g.setFont(self.small)
     g.setColor(0.75, 0.79, 0.85, 1)
-    local hint = #choices > 0 and self.page == #self.pages and "↑ / ↓ · Elegir    Enter / Espacio / Z · Confirmar"
-      or "Enter / Espacio / Z · Continuar"
-    g.printf(self.error or hint, panel.x + layout.gap, layout.hint_y, layout.text_width)
+    g.printf(self.error or ayuda(#choices > 0 and self.page == #self.pages), panel.x + layout.gap, layout.hint_y,
+      layout.text_width)
   end
   g.pop()
 end

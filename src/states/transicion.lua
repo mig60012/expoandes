@@ -69,6 +69,9 @@ for _, direction in ipairs({ "left", "right" }) do
 end
 walk_animations.left.idle_frame = #walk_animations.left.frames
 walk_animations.right.idle_frame = 1
+local Characters = require("src/ui/characters")
+local StoryView = require("src/ui/story_dialogue")
+local Mando = require("src/systems/mando")
 local filtro_add_tarde = love.graphics.newImage("assets/transicion/Filtro_add(tarde).PNG")
 local filtro_add_siempre = love.graphics.newImage("assets/transicion/filtro_add_siempre.PNG")
 local filtro_color_burn = love.graphics.newImage("assets/transicion/Filtro_color_burn.PNG")
