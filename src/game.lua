@@ -6,6 +6,7 @@ local Economy = require("src/systems/economy")
 local Progress = require("src/systems/progress")
 local DayFlow = require("src/systems/day_flow")
 local Story = require("src/story")
+local StoryTest = require("src/states/story_test")
 
 local Game = {}
 
@@ -62,6 +63,7 @@ function Game.load()
       work_income = 5,
     },
     state_machine = StateMachine,
+    story_test = StoryTest.enabled(),
   }
   Game.context.day_flow = DayFlow.new(Game.context)
   Game.context.day_flow:start_day(1)

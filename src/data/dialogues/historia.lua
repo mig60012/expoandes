@@ -16,12 +16,13 @@ end
 local g = B.new("historia_opening")
 g:scene("inicio", {
   { "Narrador", "En la sala de su casa, un hombre apuesta en línea desde su teléfono." },
-  { "Esposa", "Cariño, llevas 2 horas apostando, ¿no crees que es tiempo de dejarlo por hoy?" },
-  { "Protagonista", "No, cariño, ¿no ves cuánto dinero estoy haciendo? Es increíble. Haciendo esto podré pagar la universidad de nuestra hija." },
-  { "Esposa", "No, cariño, en serio creo que esto se está volviendo un problema. ¿Qué pasa cuando empieces a perder? Porque créeme, lo harás, la casa siempre gana." },
-  { "Protagonista", "Ya, no digas ridiculeces, no tengo ningún problema, y soy bueno apostando, no puedo perder. Me sé controlar yo solo, no necesito que me lo recuerdes todo el tiempo. Por favor, confía en mí, es imposible que me vuelva adicto o lo pierda todo." },
-  { "Esposa", "Esto no me está gustando." },
-  { "Protagonista", "Tranquila." },
+  { "Esposa", "¿Otra vez?" },
+  { "Protagonista", "Ya casi termino." },
+  { "Esposa", "Eso dijiste ayer." },
+  { "Protagonista", "Estoy intentando recuperar lo que perdí." },
+  { "Esposa", "¿Y si lo dejas por hoy?" },
+  { "Protagonista", "No es tan sencillo." },
+  { "Narrador", "La conversación queda sin resolver." },
   { "Narrador", "Un año después. Las apuestas en línea ya no le hacen sentir lo mismo. Ahora pasa sus días en el casino." },
   { "Narrador", "Una noche, en la calle, negocia un préstamo con un gota a gota." },
   { "Protagonista", "Le debo mucho dinero al casino, entonces necesito toda esa cantidad, si es posible." },
@@ -65,83 +66,66 @@ H.morning[1] = g:build("esposa")
 g = B.new("historia_day_2")
 g:route("ruta", { { condition = outcome("N1", "A"), next = "familia" }, { next = "ausente" } })
 g:scene("familia", {
-  { "Esposa", "Buenos días, cariño, qué bueno que llegaste temprano anoche, disfrutamos de tu compañía." },
-  { "Protagonista", "Buenos días, cariño, sí, yo también disfruté estar con ustedes." },
-  { "Hija", "Sí, papá, te extraño cuando no estás." },
-  { "Protagonista", "Debo hacer un esfuerzo por ser bueno con ellas, o me van a odiar.", "Hija" },
+  { "Esposa", "Anoche la niña estuvo muy contenta de que llegaras." },
+  { "Hija", "¿Hoy también vas a estar?" },
+  { "Protagonista", "Voy a intentar terminar temprano.", "Hija" },
 }, "respuesta")
 g:choice("respuesta", "¿Qué le digo a mi hija?", {
   { text = "Disculparme y valorar el tiempo juntos", next = "perdon", effects = points(1) },
   { text = "No prometer que pueda hacerlo seguido", next = "trabajo" },
 })
 g:scene("perdon", {
-  { "Protagonista", "Yo también, pequeña, ya era hora de que compartiéramos. Lo siento por no estar tan presente a veces.", "Hija" },
-  { "Hija", "Gracias." },
+  { "Protagonista", "Yo también te extrañé. Me gustó estar con ustedes ayer.", "Hija" },
+  { "Hija", "Entonces intenta llegar temprano hoy." },
+  { "Protagonista", "Voy a intentarlo." },
 })
 g:scene("trabajo", {
-  { "Protagonista", "Lo sé, pero no prometo poder hacerlo seguido, tengo mucho trabajo.", "Hija" },
-  { "Hija", "Okay." },
+  { "Protagonista", "No puedo prometer que vaya a ser seguido. Tengo mucho trabajo.", "Hija" },
+  { "Hija", "Bueno…" },
 })
 g:scene("ausente", {
   { "Esposa", "Buenos días, ¿mucho trabajo anoche?" },
-  { "Protagonista", "Sí, cariño, lo siento de nuevo." },
-  { "Hija", "Ya se está volviendo costumbre." },
+  { "Protagonista", "Sí. Se me hizo tarde." },
+  { "Hija", "Últimamente siempre se te hace tarde." },
+  { "Esposa", "Deja que desayune, hija.", false },
 })
 H.morning[2] = g:build("ruta")
 
 g = B.new("historia_day_3")
 g:route("ruta", { { condition = outcome("N2", "A"), next = "familia" }, { next = "ausencias" } })
 g:scene("familia", {
-  { "Esposa", "Hola, cariño, me gusta que hayas llegado temprano. Voy a hacer el desayuno de la niña." },
-  { "Protagonista", "Que te vaya bien, cariño." },
-  { "Esposa", "Gracias." },
-  { "Hija", "Hola, papá, ¿cómo dormiste?" },
-  { "Protagonista", "Hola, pequeña, muy bien, ¿y tú?" },
-  { "Hija", "Bien, papá, hoy tengo un evento en el colegio. Deséame suerte." },
+  { "Esposa", "Me alegra que ayer llegaras temprano." },
+  { "Hija", "Hoy tengo un evento en el colegio. Estoy un poco nerviosa." },
+  { "Protagonista", "¿Qué vas a presentar?", "Hija" },
+  { "Hija", "Una presentación. Después te cuento cómo me fue." },
 }, "colegio")
 g:choice("colegio", "¿Le presto atención?", {
   { text = "Desearle suerte y escucharla", next = "suerte", effects = points(1) },
   { text = "Despedirme rápidamente", next = "prisa" },
 })
 g:scene("suerte", {
-  { "Protagonista", "Que te vaya bien, hija, me cuentas cómo te fue.", "Hija" }, { "Hija", "Gracias, papá." },
+  { "Protagonista", "Que te vaya bien. Después me cuentas cómo te fue.", "Hija" },
+  { "Hija", "¿De verdad vas a escuchar todo?" },
+  { "Protagonista", "Todo." },
+  { "Hija", "Entonces te guardo los detalles.", false },
 })
-g:scene("prisa", { { "Protagonista", "Qué bueno, pero tengo que irme ya, voy tarde al trabajo.", "Hija" } })
+g:scene("prisa", {
+  { "Protagonista", "Qué bueno. Tengo que salir ya, voy tarde.", "Hija" },
+  { "Hija", "Ah, bueno. Suerte entonces.", false },
+})
 g:scene("ausencias", { { "Protagonista", "Debo tratarlas bien, les va a parecer raro mi comportamiento si no lo hago.", false } }, "ruta_ausencia")
 g:route("ruta_ausencia", {
   { condition = both(any(outcome("N1", "B"), outcome("N1", "C")), any(outcome("N2", "B"), outcome("N2", "C"))), next = "dos_noches" },
   { next = "una_noche" },
 })
 g:scene("dos_noches", {
-  { "Esposa", "Buenos días, mira, me estoy cansando de que llegues tarde, esto ya no es normal. ¿Qué está pasando?" },
-  { "Protagonista", "Nada, cariño, en serio tengo mucho trabajo, nada más. Lo siento, trataré de mejorar." },
-  { "Esposa", "Pues más te vale. Voy a hacerle el desayuno a la niña, y espero verte aquí temprano." },
-  { "Protagonista", "Dale, cariño, que te vaya bien." },
-  { "Hija", "Hola, ¿por qué sigues llegando tarde? ¿Qué te pasa?" },
-}, "conflicto")
-g:choice("conflicto", "¿Cómo respondo?", {
-  { text = "Reclamarle también a ella", next = "enfado", effects = points(-1) },
-  { text = "Disculparme y desearle suerte", next = "disculpa" },
-})
-g:scene("enfado", {
-  { "Protagonista", "¿Tú también estás brava conmigo? Mira, ya tengo suficiente con tu madre, no tengo tiempo, debo salir ya.", "Hija" },
-  { "Hija", "Ush, esto ya no es normal." },
-})
-g:scene("disculpa", {
-  { "Protagonista", "Lo sé, hija, sé que prometí llegar más temprano, pero tengo mucho trabajo, trataré de llegar más temprano hoy.", "Hija" },
-  { "Hija", "Eso espero, pero bueno, deséame suerte, tengo algo importante hoy." },
-  { "Protagonista", "Que te vaya bien entonces, me cuentas cómo te va luego." },
+  { "Esposa", "Necesito preguntarte algo. ¿Está pasando algo en el trabajo?" },
+  { "Protagonista", "No. ¿Por qué?" },
+  { "Esposa", "No sé. Últimamente estás distinto." },
+  { "Protagonista", "Estoy cansado, nada más.", false },
 })
 g:scene("una_noche", {
-  { "Esposa", "Hola, cariño, sé que solo fue ayer, pero por favor llega temprano hoy." },
-  { "Protagonista", "Está bien, cariño, haré el mejor esfuerzo." },
-  { "Esposa", "Eso espero, pero bueno, voy a hacer el desayuno de la niña." },
-  { "Protagonista", "Que te vaya bien." },
-  { "Hija", "Hola, papá, ¿mucho trabajo anoche?" },
-  { "Protagonista", "Sí, hija, lo siento, trataré de llegar más temprano hoy." },
-  { "Hija", "Está bien, pero deséame suerte, tengo algo importante hoy en el colegio." },
-  { "Protagonista", "Entonces suerte, hija, nos vemos más tarde." },
-  { "Hija", "Gracias, papá, así será." },
+  { "Narrador", "La conversación no ocurre. La mañana continúa.", false },
 })
 H.morning[3] = g:build("ruta")
 
@@ -151,43 +135,39 @@ g:route("ruta", {
   { condition = outcome("N3", "C"), next = "carro_oculto" }, { next = "conservado" },
 })
 g:scene("carro_conocido", {
-  { "Esposa", "Hola. Mira, no estoy de acuerdo con lo que vas a hacer, pero espero te den buen dinero por ese carro." },
-  { "Protagonista", "Lo mismo espero yo, lo siento, todo mejorará, cariño." },
-  { "Esposa", "Más te vale. Pero bueno, voy para el mercado." },
-  { "Protagonista", "Que te vaya bien." },
-  { "Hija", "Hola, escuché de mi mamá que vas a vender el carro. ¿Qué te pasa? Ya me preocupa la manera en la que te estás comportando." },
-  { "Protagonista", "Lo sé, pero lo siento. No había nada más que hacer, necesito el dinero." },
-  { "Hija", "Y, ¿cómo para qué necesitas tanta plata?" },
-  { "Protagonista", "Tenía una deuda vieja que pagar, pero todo mejorará, te lo prometo." },
-  { "Hija", "Más te vale." },
+  { "Esposa", "No estaba de acuerdo con vender el carro, pero ya está hecho. Necesito que me expliques qué está pasando." },
+  { "Protagonista", "Es una deuda vieja. Voy a solucionarlo." },
+  { "Esposa", "¿Qué deuda? Nunca me hablaste de esto." },
+  { "Protagonista", "No quería preocuparte." },
+  { "Esposa", "No puedes decidir eso por mí.", false },
 })
 g:scene("carro_oculto", {
-  { "Esposa", "Hola, cariño, ¿qué tal la noche?" },
-  { "Protagonista", "Bien, cariño, tengo algo que comentarte. He decidido vender el carro, necesito el dinero." },
-  { "Esposa", "¿Para qué?" },
-  { "Protagonista", "Necesito el dinero para pagar una deuda vieja, no te había contado sobre ella, pero es verdad." },
-  { "Esposa", "¿Qué te pasa? Mentiroso, debiste haberme dicho que tenías deudas grandes." },
-  { "Protagonista", "Lo sé, cariño, lo siento. Ahora lo sabes, y necesito que me dejes venderlo." },
-  { "Esposa", "Pues claro que no, es tu deuda, y no vas a vender NUESTRO carro para pagarla." },
-  { "Protagonista", "Bueno, pues lo lamento, pero no estaba pidiendo permiso. Haré lo que quiera con nuestro carro." },
-  { "Esposa", "Bueno, pues nada que hacer, pero quiero que sepas que no me gusta esto. Cada vez estás más raro. Si esto sigue así, tendré que dejarte. Voy al mercado." },
-  { "Protagonista", "Está brava conmigo, y tiene razón, pero no me quedaba de otra. Si no consigo esa plata a tiempo, nadie sabe qué puede pasar.", false },
+  { "Esposa", "¿Dónde está el carro?" },
+  { "Protagonista", "Tuve que venderlo. Necesitaba el dinero." },
+  { "Esposa", "¿Lo vendiste sin decirme nada?" },
+  { "Protagonista", "No tenía tiempo para discutirlo." },
+  { "Esposa", "No es una discusión. Es nuestro carro." },
+  { "Protagonista", "Lo sé." },
+  { "Esposa", "No parece que lo sepas.", false },
 })
 g:scene("conservado", {
-  { "Esposa", "Hola, cariño, voy al mercado a comprar unas cosas que nos faltan." },
-  { "Protagonista", "Está bien, cariño, que te vaya bien." },
-  { "Hija", "Hola, papá, tengo que salir rápido, voy tarde y me va a dejar el bus." },
-  { "Protagonista", "Está bien, hija, que te vaya bien hoy." }, { "Hija", "Gracias." },
+  { "Esposa", "¿Vas a llegar temprano hoy?" },
+  { "Protagonista", "No lo sé." },
+  { "Esposa", "La niña tiene cosas que contarte." },
+  { "Protagonista", "Voy a intentar estar.", false },
 })
 H.morning[4] = g:build("ruta")
 
 g = B.new("historia_day_5")
 g:scene("hija", {
-  { "Hija", "Mi mamá me contó todo lo que pasó anoche. Eres un mentiroso, no te importa nada ni nadie." },
-  { "Protagonista", "Lo siento, hija, no debí hacer todo esto, es mi culpa." },
-  { "Hija", "Más te vale sacarnos de esta, todo es tu culpa." },
-  { "Protagonista", "Lo sé, y nos sacaré de esta." },
-  { "Protagonista", "Tengo que solucionar esto, necesito mucha plata, y rápido.", false },
+  { "Narrador", "La esposa está distante. No inicia una discusión." },
+  { "Hija", "Papá, mamá me dijo que están pasando por un problema." },
+  { "Protagonista", "Lo siento. No quería que te preocuparas." },
+  { "Hija", "¿Por eso casi nunca estás?" },
+  { "Protagonista", "He estado intentando resolver unas cosas." },
+  { "Hija", "¿Y vas a volver a estar con nosotras?" },
+  { "Protagonista", "Claro." },
+  { "Hija", "No me prometas cosas si no estás seguro.", false },
 }, "decision")
 g:choice("decision", "¿Qué hago en el último día?", {
   { text = "Ir a trabajar", action = "work" }, { text = "Ir al casino", action = "casino" },
@@ -195,7 +175,11 @@ g:choice("decision", "¿Qué hago en el último día?", {
 H.morning[5] = g:build("hija")
 
 g = B.new("historia_street_1")
-g:scene("vagabundo", { { "Vagabundo", "No puede ser, ¿usted de nuevo? ¿Por qué va todos los días al casino?" } })
+g:scene("vagabundo", {
+  { "Vagabundo", "Buenos días." },
+  { "Protagonista", "Buenos días." },
+  { "Vagabundo", "Que tenga buen día.", false },
+})
 H.street[1] = g:build("vagabundo")
 g = B.new("historia_street_2")
 g:route("ruta", {
@@ -219,28 +203,40 @@ g:route("ruta", {
 })
 g:scene("visto", { { "Vagabundo", "Buenos días, señor, ¿cómo va el día?" }, { "Protagonista", "Podría ir mejor." } })
 g:scene("dos_noches", {
-  { "Vagabundo", "Buenos días, señor. Mire, no quiero entrometerme, pero tenga cuidado con las apuestas. Me costó todo a mí, no quiero que lo mismo le ocurra." },
-  { "Protagonista", "Creo que ya es muy tarde para eso, tengo muchas deudas, no sé qué hacer. Esta es mi única salida, tengo que hacer dinero para ya." },
+  { "Vagabundo", "Hace tiempo que no lo veo salir temprano." },
+  { "Protagonista", "Tengo asuntos pendientes." },
+  { "Vagabundo", "No tiene que explicarme nada." },
+  { "Protagonista", "Tengo una deuda. No puedo simplemente dejar de ir." },
+  { "Vagabundo", "Yo también tuve una deuda." },
+  { "Protagonista", "¿Y qué hizo?" },
+  { "Vagabundo", "Seguí jugando.", false },
 })
-g:scene("una_noche", { { "Vagabundo", "Buenos días, señor. Cuídese." } })
+g:scene("una_noche", { { "Vagabundo", "El vagabundo lo saluda brevemente. No hay advertencia.", false } })
 H.street[3] = g:build("ruta")
 g = B.new("historia_street_4")
 g:route("ruta", {
-  { condition = any(outcome("N3", "C"), outcome("N3", "D")), next = "tarde" }, { next = "temprano" },
+  { condition = any(outcome("N3", "C"), outcome("N3", "D")), next = "tarde" },
+  { condition = outcome("N3", "A"), next = "vendido" }, { next = "temprano" },
 })
-g:scene("tarde", { { "Vagabundo", "Hola, señor, me está preocupando. Anoche pasó mucho tiempo en ese casino. Así terminé yo, y ya puede ver las consecuencias." } }, "carro")
-g:route("carro", { { condition = outcome("N3", "C"), next = "vendido" }, { next = "conservado" } })
+g:scene("tarde", {
+  { "Vagabundo", "¿Durmió algo anoche?" },
+  { "Protagonista", "¿Ahora también va a preguntarme eso?" },
+  { "Vagabundo", "No tiene que contestarme." },
+  { "Protagonista", "Tengo demasiadas cosas en la cabeza." },
+  { "Vagabundo", "Lo imagino.", false },
+})
 g:scene("vendido", {
   { "Protagonista", "Creo que ya es muy tarde para cambiar la situación, tuve que vender mi carro para pagarle una deuda a un gota a gota.", "Vagabundo" },
-  { "Vagabundo", "Algo parecido me pasó, tenía un buen trabajo, una buena familia, y todo lo perdí por las apuestas. Por eso estoy aquí, una advertencia para personas perdidas como usted." },
+  { "Vagabundo", "Yo también tuve que vender cosas." },
+  { "Protagonista", "No es lo mismo." },
+  { "Vagabundo", "Eso pensaba yo.", false },
 })
 g:scene("conservado", {
-  { "Protagonista", "Lo sé, pero no me queda de otra, tengo que pagar una deuda.", "Vagabundo" },
-  { "Vagabundo", "Así les pasa a muchos, pero si no cambia, terminará como yo." },
+  { "Vagabundo", "Cuídese, señor." },
+  { "Protagonista", "Gracias.", false },
 })
 g:scene("temprano", {
-  { "Vagabundo", "Hola, señor, me preocupa verlo todos los días en el casino." },
-  { "Protagonista", "Lo sé, pero no me queda otra opción. Tengo que pagar una deuda muy, muy grande." },
+  { "Vagabundo", "El vagabundo lo saluda brevemente o no está presente.", false },
 })
 H.street[4] = g:build("ruta")
 g = B.new("historia_street_5")
@@ -299,10 +295,10 @@ g:choice("venta_tarde", "Todos están dormidos. ¿Vendo el carro para pagar la d
   { text = "Conservarlo", action = "keep" },
 })
 g:scene("discusion", {
-  { "Protagonista", "Cariño, tengo que decirte algo. Creo que deberíamos vender el carro. No estamos tan bien de dinero, y lo necesitamos.", "Esposa" },
-  { "Esposa", "¿Qué? No estoy de acuerdo, cariño, todo mejora, y luego extrañaremos la comodidad del carro." },
-  { "Protagonista", "Bueno, pues no hay nada que hacer. Lo voy a vender, te guste o no. Lo siento, no lo discutiré más." },
-  { "Esposa", "¿Qué te pasa? Cada día me preocupa más tu comportamiento, esto no está bien." },
+  { "Protagonista", "He estado pensando que podríamos vender el carro. Necesito dinero para una deuda.", "Esposa" },
+  { "Esposa", "¿Para qué?" },
+  { "Protagonista", "Necesito dinero para una deuda. No quería preocuparte." },
+  { "Esposa", "No puedes decidir qué cosas tengo derecho a saber." },
 })
 H.car_return = g:build("ruta")
 
@@ -352,19 +348,18 @@ g:choice("decision", "¿Cómo intento completar el pago de la deuda?", {
   { text = "No utilizar ninguno", action = "none" },
 })
 g:scene("casa", {
-  { "Protagonista", "Hola, cariño, tengo que ser honesto. No más mentiras. La realidad es que sí, estoy endeudado por el juego, y la deuda es mucho más grande que el carro. Tengo que hipotecar la casa para ayudarme a pagarla. Lo siento, de verdad, todo esto es mi culpa, y entiendo si quieres dejarme y llevarte a la niña.", "Esposa" },
-  { "Esposa", "Lo sabía, te lo dije 20 mil veces, NO apuestes. Todos terminan así, perdiendo todo el dinero que se han ganado en su vida." },
-  { "Protagonista", "Lo sé." },
-  { "Esposa", "Cállate, ya no quiero oírte más. Mañana mismo empiezo a empacar mis cosas para irme a donde mi madre. No quiero verte la cara, eres lo peor que me ha pasado en mi vida." },
-  { "Protagonista", "Está bien, lo entiendo. Espero algún día puedas perdonarme." },
-  { "Esposa", "No creo que eso sea posible." },
+  { "Protagonista", "Tengo que contarte algo. La deuda es mucho más grande de lo que te dije. He estado apostando.", "Esposa" },
+  { "Esposa", "¿Cuánto tiempo llevas así?" },
+  { "Protagonista", "No sé exactamente." },
+  { "Esposa", "No puedo seguir viviendo sin saber qué va a pasar. Mañana me voy con la niña a casa de mi madre.", false },
 })
 g:scene("ahorros", {
-  { "Hija", "Hola, papá." }, { "Protagonista", "Hola, hija, tenemos que hablar." }, { "Hija", "¿Qué pasó?" },
-  { "Protagonista", "Voy a serte sincero, tengo una adicción a las apuestas. Tu madre me advirtió de esto cuando empecé a apostar en línea. No le hice caso, pensé que mi calidad jugando y mi autocontrol me permitirían mantener el control, y no volverme adicto. Pero la verdad es que es imposible, la casa siempre gana, y la mayoría termina como yo, perdiéndolo todo. Me endeudé gracias al juego, y ahora tengo que usar el dinero de tu universidad para pagar la deuda. Si no lo hago, cosas muy malas van a pasar." },
-  { "Hija", "Eres un idiota, mentiroso, y bueno para nada. ¿En serio creíste que podías salirte con las tuyas, ganar apostando? Eso nunca pasa, mamá tenía razón, nunca debiste meterte en las apuestas." },
-  { "Protagonista", "Lo sé, todo esto es mi culpa. No sé qué hará tu madre ahora, pero quiero que sepas que te quiero, para siempre, y espero algún día me perdones." },
-  { "Hija", "Es imperdonable todo lo que has hecho. Nunca, pero nunca, te voy a perdonar. Estás sacrificando MI futuro por culpa de TU egoísmo e ingenuidad. Espero termines en la calle, como te lo mereces." },
+  { "Protagonista", "Usé el dinero que teníamos guardado para la universidad.", "Hija" },
+  { "Hija", "¿Qué dinero?" },
+  { "Protagonista", "El que teníamos ahorrado." },
+  { "Hija", "¿El mío?" },
+  { "Protagonista", "Lo voy a recuperar." },
+  { "Hija", "Ese dinero era para estudiar.", false },
 })
 H.economic = g:build("decision")
 g = B.new("historia_work")
@@ -375,32 +370,32 @@ H.work = g:build("trabajo")
 H.endings = {}
 g = B.new("historia_final_1")
 g:scene("final", {
-  { "Narrador", "Un día después. La casa está a oscuras. No se escucha ningún ruido." },
-  { "Protagonista", "¿Cariño? ¿Hija?" }, { "Narrador", "No hay respuesta." },
-  { "Protagonista", "¿Hola?" }, { "Narrador", "No hay respuesta. Su esposa y su hija han desaparecido." },
-  { "Protagonista", "No puede ser, el gota a gota se las llevó. Todo es mi culpa, soy un egoísta y un mentiroso. Debí hacerle caso a mi esposa, nada de esto habría pasado. Pero ahora están desaparecidas, y quién sabe qué están haciendo con ellas. Soy un imbécil." },
-  { "Narrador", "Un mes después. Sucio y con la ropa rota, el protagonista está en la calle, al lado del vagabundo." },
-  { "Protagonista", "Debí hacerle caso a usted y a mi esposa, lo perdí todo, como usted." },
-  { "Vagabundo", "Traté de advertirle, pero no me hizo caso. Y ahora está aquí, conmigo, en las mismas circunstancias que yo." },
-  { "Protagonista", "Lo sé, lo tenía todo. Un negocio propio, una familia que me amaba. Y ahora no tengo mi negocio, y mi familia me odia, si es que están vivas." },
+  { "Narrador", "Un día después. La casa está vacía. La puerta está abierta. No hay nadie." },
+  { "Protagonista", "¿Amor?" }, { "Narrador", "No obtiene respuesta." },
+  { "Narrador", "Sobre la mesa quedan algunas pertenencias." },
+  { "Narrador", "Un mes después, el protagonista está sentado en la calle, cerca del vagabundo." },
+  { "Protagonista", "¿Usted cree que alguna vez se puede volver a empezar?" },
+  { "Vagabundo", "No lo sé.", false },
 })
 H.endings.final_1 = g:build("final")
-local final_shared = "Ojalá le hubiera hecho caso a mi esposa desde el principio, nada de esto habría pasado. Pensé que podía apostar sin consecuencias, pero la realidad es que es muy fácil caer. La casa siempre gana, y la mayoría terminan como yo, perdiéndolo absolutamente todo y casi solos."
 for _, id in ipairs({ "final_2", "final_3" }) do
   g = B.new("historia_" .. id)
-  local relacion = id == "final_2" and "mi familia me dejó y mi ex-esposa me odia hasta el fondo de su corazón. Perdí mi negocio porque se quebró por mi culpa, y ahora trabajo en un McDonalds, miserable y arrepentido de todas las decisiones que tomé. Lo único bueno es que mi hija no me odia completamente, a veces hablo con ella o nos encontramos para hablar."
-    or "mi familia me dejó y mi ex-esposa y mi hija me odian hasta el fondo de su corazón. Perdí mi negocio porque se quebró por mi culpa, y ahora trabajo en un McDonalds, miserable y arrepentido de todas las decisiones que tomé."
+    local relacion = id == "final_2"
+      and "A veces hablo con mi hija. No es como antes. Ya no me cuenta todo y tampoco sé cómo preguntarle. Mi esposa no quiere verme. No la culpo."
+      or "Hace meses que no hablo con ellas. A veces pienso en llamarlas. Después recuerdo todo lo que les dije y todo lo que les oculté. No sé si todavía quieren escucharme."
   g:scene("final", {
     { "Narrador", "Un año después. El protagonista cuenta el final de su historia." },
-    { "Protagonista", "Y después de todo esto, logré pagar gran parte de la deuda, pero igualmente hubo consecuencias. El gota a gota me sacó un riñón para cobrarme la parte que me faltaba, " .. relacion },
-    { "Protagonista", final_shared },
+    { "Protagonista", "El negocio quebró y tuve que aceptar otro empleo. Estoy separado de mi esposa. Mi situación económica sigue siendo difícil." },
+    { "Protagonista", relacion },
   })
   H.endings[id] = g:build("final")
 end
 g = B.new("historia_final_4")
 g:scene("final", {
-  { "Protagonista", "Al final, pude pagar mi deuda, pero ni siquiera importó, lo perdí todo otra vez. Tal como en el principio, pensé que podía ganar, y recuperar mi situación apostando. Pero como me dijo mi ex-esposa al principio de toda esta historia, la casa siempre gana. Debí hacerle caso desde el principio, nada de esto habría pasado, y probablemente seríamos felices juntos criando a nuestra maravillosa hija. Pero no, no le hice caso. Le hice caso a mi cabeza, que me decía que lo que me decía mi ex-esposa no me iba a pasar a mí, que era bueno jugando y que la adicción era un caso extremo. Pero la realidad es diferente, y terminé exactamente como ella creyó que lo haría si seguía apostando." },
-  { "Protagonista", "Ahora mi familia me odia y ni siquiera sé qué pasó con sus vidas, pues no me quieren ver la cara ni en pintura. Además, mi negocio se quebró pues lo descuidé y empezó a ir cabeza abajo. Ahora trabajo en un McDonalds, triste y miserable, arrepentido de mis decisiones." },
+  { "Narrador", "Después de pagar la deuda, el protagonista vuelve al casino. Ya no tiene la misma presión económica que lo llevó allí, pero entra y decide apostar otra vez." },
+  { "Protagonista", "La deuda ya estaba pagada." },
+  { "Protagonista", "Podría haberme ido." },
+  { "Protagonista", "Pero seguía pensando que podía ganar un poco más.", false },
 })
 H.endings.final_4 = g:build("final")
 return H
