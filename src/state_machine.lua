@@ -17,11 +17,14 @@ function state_machine.load(context)
     transicion = require("src/states/transicion"),
     animacion = require("src/states/animacion"),
     finales = require("src/states/finales"),
+    story_test = require("src/states/story_test"),
   }
 
   state_machine.context = context or {}
   state_machine.current_name = ""
-  state_machine:switch(state_machine.context.story and "animacion" or "casa")
+  local initial = state_machine.context.story_test and "story_test"
+    or (state_machine.context.story and "animacion" or "casa")
+  state_machine:switch(initial)
 end
 
 function state_machine:switch(name, ...)

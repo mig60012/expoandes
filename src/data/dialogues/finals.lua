@@ -5,14 +5,14 @@ return {
   },
   final_2 = {
     title = "UNA RELACIÓN QUE TODAVÍA EXISTE",
-    text = "Perdiste tu negocio, tu salud y tu matrimonio. La relación con tu hija todavía existe.",
+    text = "El negocio quebró. Estás separado de tu esposa y tu situación económica sigue siendo difícil. La relación con tu hija todavía existe, aunque ya no es como antes.",
   },
   final_3 = {
     title = "LA RUPTURA",
-    text = "Perdiste tu negocio, tu salud y el contacto con tu familia. Ahora vives arrepentido de tus decisiones.",
+    text = "El negocio quebró. Sigues teniendo dificultades económicas y hace meses que no hablas con ellas.",
   },
   final_4 = {
     title = "LA DEUDA NUNCA FUE EL ÚNICO PROBLEMA",
-    text = "Pagaste la deuda, volviste a apostar y lo perdiste todo otra vez.",
+    text = "Pagaste la deuda, volviste a apostar y perdiste lo que habías conseguido.",
   },
 }

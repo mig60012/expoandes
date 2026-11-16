@@ -14,6 +14,16 @@ love .
 
 También se puede arrastrar la carpeta del proyecto sobre el ejecutable de LÖVE. Se recomienda utilizar LÖVE 11.5 o una versión compatible.
 
+Para probar rápidamente escenas y finales sin jugar toda la historia:
+
+```bash
+love . --story-test
+```
+
+El selector permite abrir el prólogo, las mañanas de los cinco días con sus
+variantes y los cuatro finales. Usa `Arriba/Abajo` o `W/S`, `Enter` para abrir
+una opción y `Esc` para volver al selector.
+
 ## Por dónde empezar
 
 Si es tu primera vez en el proyecto, lee estos documentos en orden:
