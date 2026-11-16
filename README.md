@@ -14,6 +14,16 @@ love .
 
 También se puede arrastrar la carpeta del proyecto sobre el ejecutable de LÖVE. Se recomienda utilizar LÖVE 11.5 o una versión compatible.
 
+Para probar rápidamente escenas y finales sin jugar toda la historia:
+
+```bash
+love . --story-test
+```
+
+El selector permite abrir el prólogo, las mañanas de los cinco días con sus
+variantes y los cuatro finales. Usa `Arriba/Abajo` o `W/S`, `Enter` para abrir
+una opción y `Esc` para volver al selector.
+
 ## Por dónde empezar
 
 Si es tu primera vez en el proyecto, lee estos documentos en orden:
@@ -45,7 +55,7 @@ El guion recorre cinco días y conserva las decisiones de `DayFlow`, los resulta
 
 La deuda es de **125 M**. El carro, la casa y los ahorros aportan respectivamente **10 M**, **15 M** y **10 M** al saldo real. El porcentaje final se calcula desde ese saldo, y los dos finales intermedios se separan en **5 puntos de familia**. En póker se elige la compra de fichas con un deslizador (100 fichas por 1 M); la compra sale de la cuenta y, al terminar la sesión, las fichas restantes vuelven proporcionalmente a ella.
 
-La casa, calle, trabajo y casino muestran en la esquina superior izquierda los fondos actuales frente a la deuda total (`actual / 125 M`); el contador se oculta durante el backstory y los finales. Los puntos familiares siguen afectando los finales, pero no se muestran en el HUD. Los retratos suministrados de protagonista, esposa e hija reemplazan los modelos provisionales en las conversaciones de la casa. En la calle, el protagonista usa su retrato cuando habla y durante los encuentros con el vagabundo; los demás personajes conservan sus placeholders.
+La casa, calle, trabajo y casino muestran en la esquina superior izquierda los fondos actuales frente a la deuda total (`actual / 125 M`) y los puntos familiares frente al objetivo (`actual / 5`); ambos se ocultan durante el backstory y los finales. Los retratos suministrados de protagonista, esposa e hija reemplazan los modelos provisionales en las conversaciones de la casa. En la calle, el protagonista usa su retrato cuando habla y durante los encuentros con el vagabundo; los demás personajes conservan sus placeholders.
 
 Las pruebas se ejecutan con `lua tests/run.lua`. `tests/test_transition_doors.lua` cubre las puertas, la cámara, los límites de movimiento y el fondo de la casa según la hora.
 

@@ -7,6 +7,7 @@ local Progress = require("src/systems/progress")
 local DayFlow = require("src/systems/day_flow")
 local Story = require("src/story")
 local Hud = require("src/ui/hud")
+local StoryTest = require("src/states/story_test")
 
 local Game = {}
 
@@ -64,6 +65,7 @@ function Game.load()
       poker_chips_per_million = 100,
     },
     state_machine = StateMachine,
+    story_test = StoryTest.enabled(),
   }
   Game.context.day_flow = DayFlow.new(Game.context)
   Game.context.day_flow:start_day(1)
