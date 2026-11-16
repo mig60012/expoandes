@@ -11,6 +11,7 @@ local Poker = require("src/states/casino/poker/poker")
 local Blackjack = require("src/states/casino/blackjack/blackjack")
 local Ruleta = require("src/states/casino/ruleta/ruleta")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 
 local casino = {}
 
@@ -76,24 +77,6 @@ local function cargar_sprites_personaje()
     sprites[direccion] = { imagen = imagen, alto = datos.alto, cuadros = cuadros, cantidad = datos.cantidad }
   end
   return sprites
-end
-
-local function cargar_sonido_pasos()
-  if not (love.audio and love.audio.newSource) then return nil end
-  local sonido = love.audio.newSource(CARPETA_PERSONAJE .. "pasos.mp3", "stream")
-  sonido:setLooping(true)
-  sonido:setVolume(0.45)
-  return sonido
-end
-
-local function actualizar_sonido_pasos(estado, caminando)
-  local sonido = estado.sonido_pasos
-  if not sonido then return end
-  if caminando then
-    if not sonido:isPlaying() then sonido:play() end
-  elseif sonido:isPlaying() then
-    sonido:stop()
-  end
 end
 
 local function cargar_fotos()
@@ -338,9 +321,11 @@ end
 
 function casino:enter(context)
   self.context = context
+  Audio.iniciar_bucle("casino_music")
+  Audio.iniciar_bucle("casino_ambiente")
   self.sprites_personaje = cargar_sprites_personaje()
-  self.sonido_pasos = cargar_sonido_pasos()
   self.direccion_personaje, self.indice_cuadro, self.tiempo_cuadro = "frente", 1, 0
+  self.paso_reloj = 0
   -- La historia conserva el capital inicial de main y las ganancias. Los
   -- estados aislados de pruebas mantienen el reinicio de saldo anterior.
   if not context.day_flow then context.economy:spend_money(context.economy:get_money()) end
@@ -398,13 +383,14 @@ function casino:enter(context)
 end
 
 function casino:leave()
-  actualizar_sonido_pasos(self, false)
+  Audio.reproducir("door_close")
+  Audio.detener_canal("musica")
   if self.sub_estado then
     self.sub_estado:leave()
   end
   self.context, self.fuente, self.fuente_dialogo, self.fuente_marcador, self.mapa, self.jugador, self.camara = nil
   self.fotos, self.interactuables, self.cercano, self.dialogo, self.en_puerta, self.sub_estado = nil
-  self.sprites_personaje, self.sonido_pasos = nil, nil
+  self.sprites_personaje = nil
   self.direccion_personaje, self.indice_cuadro, self.tiempo_cuadro = nil, nil, nil
   self.arte = nil
   self.jornada, self.historial = nil
@@ -541,12 +527,8 @@ end
 
 function casino:update(dt)
   self:revisar_limite()
-  if self.dialogo then
-    actualizar_sonido_pasos(self, false)
-    return
-  end
+  if self.dialogo then return end
   if self.sub_estado.current then
-    actualizar_sonido_pasos(self, false)
     self.sub_estado:update(dt)
     self:revisar_limite()
     return
@@ -557,8 +539,17 @@ function casino:update(dt)
     local dy = (tecla("down", "s") and 1 or 0) - (tecla("up", "w") and 1 or 0)
     local x_anterior, y_anterior = self.jugador.x, self.jugador.y
     self.jugador:mover(dx, dy, dt)
-    local caminando = actualizar_animacion_personaje(self,
+    actualizar_animacion_personaje(self,
       self.jugador.x - x_anterior, self.jugador.y - y_anterior, dt)
+    if dx ~= 0 or dy ~= 0 then
+      self.paso_reloj = self.paso_reloj - dt
+      if self.paso_reloj <= 0 then
+        Audio.reproducir("footstep_" .. love.math.random(1, 3), { volumen = 0.65 })
+        self.paso_reloj = 0.38
+      end
+    else
+      self.paso_reloj = 0
+    end
     self.cercano = self.jugador:mas_cercano(self.interactuables, Plano.jugador.alcance)
     local en_puerta = Colision.dentro(self.jugador.x, self.jugador.y, Plano.puerta.zona)
     if en_puerta and not self.en_puerta then
@@ -569,7 +560,6 @@ function casino:update(dt)
       end
     end
     self.en_puerta = en_puerta
-    actualizar_sonido_pasos(self, caminando and not self.dialogo)
   end
   self:encuadrar()
 end

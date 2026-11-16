@@ -82,6 +82,7 @@ end
 function Game.draw()
   StateMachine:draw()
   Hud.draw(Game.context, StateMachine.current_name)
+  StateMachine:draw_transition()
 end
 
 function Game.keypressed(key, scancode, isrepeat)

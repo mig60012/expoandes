@@ -160,6 +160,7 @@ function Motor:nueva_ronda()
   self.fase, self.tiempo, self.cola = "apuestas", 0, {}
   self.turno, self.indice_mano, self.revelada = nil, nil, false
   self.crupier, self.mazo = mano(0), Reglas.mazo(self.random)
+  self:evento("card_shuffle")
   self.monto, self.mensaje = self.minimo, "Elige tu apuesta. Cada mano juega contra el crupier."
   for _, j in ipairs(self.jugadores) do j.manos, j.dividio, j.accion, j.ganador = {}, false, nil, false end
   if not self:puede_jugar() then self.mensaje = "Ya no quedan jugadas por hoy. Vuelve al casino."
@@ -314,6 +315,7 @@ function Motor:liquidar()
     self.mensaje = "Ronda liquidada. Completaste las jugadas disponibles; vuelve al casino."
   end
   self:evento("chip_place")
+  self:evento(self.jugadores[1].ganador and "coins" or "failure")
   return true
 end
 function Motor:update(dt)

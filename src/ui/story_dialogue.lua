@@ -1,6 +1,7 @@
 local Dialogue = require("src/systems/dialogue")
 local Characters = require("src/ui/characters")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 local View = {}
 View.__index = View
 
@@ -98,6 +99,7 @@ function View:_finish()
 end
 
 function View:_advance(choice)
+  Audio.reproducir("clack", { volumen = 0.35 })
   self:_refresh()
   if self.page < #self.pages then self.page = self.page + 1; return end
   local choices = self.dialogue:get_choices() or {}

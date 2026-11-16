@@ -23,6 +23,7 @@ local Casa = {}
 Casa.usa_cursor = true
 local DialogueView = require("src/states/casa/dialogue")
 local Mando = require("src/systems/mando")
+local Audio = require("src/systems/audio")
 
 -- Tamano del espacio virtual en el que se disena todo
 local VW, VH = 1280, 720
@@ -136,6 +137,7 @@ end
 -- ============================================================
 function Casa:enter(context)
   self.context = context
+  Audio.iniciar_bucle("casa_ambiente")
 
   if context.story and context.rules then
     context.rules.work_income = 3
@@ -213,6 +215,7 @@ function Casa:enter(context)
       color = { 0.50, 0.30, 0.15 },
       accion = function(casa)
         -- Cambia de estado: sale de la casa y va al casino
+        Audio.reproducir("door_open")
         casa.context.state_machine:switch("transicion", true)
       end,
     },
@@ -290,6 +293,7 @@ function Casa:ir_al_trabajo()
 
   self.dia_trabajado = today
   self.context.economy:add_money(3)
+  Audio.reproducir("door_close")
   self.context.state_machine:switch("trabajo")
   return true
 end
