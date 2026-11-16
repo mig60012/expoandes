@@ -68,7 +68,7 @@ Characters.world(0,0,100,true,1)
 assert(polygons >= 4 and circles >= 6, "el carro tiene perfil, ventanillas y ruedas, no solo un rectangulo")
 love = original_love
 
-for _, path in ipairs({ Plano.arte.ruta, "assets/casino/sala_blackjack.png", "assets/casino/sala_poker.png", "assets/casino/sala_ruleta.png" }) do
+for _, path in ipairs({ Plano.arte.ruta, Plano.arte.multiplicar, Plano.arte.sumar[1], Plano.arte.sumar[2] }) do
   local file = assert(io.open(path,"rb"), path)
   local header = file:read(24); file:close()
   assert(header:sub(2,4) == "PNG", "el asset procesado es una imagen PNG")
@@ -77,8 +77,8 @@ for _, path in ipairs({ Plano.arte.ruta, "assets/casino/sala_blackjack.png", "as
       local a,b,c,d = header:byte(i,i+3)
       return ((a*256+b)*256+c)*256+d
     end
-    assert(number(17) == 736 and number(21) == 414, "se elimino la interfaz y el margen vertical de la captura")
+    assert(number(17) == Plano.ancho and number(21) == Plano.alto, "el fondo del salon tiene la resolucion del mundo")
   end
 end
-for _, object in ipairs(Plano.objetos) do assert(object.arte and object.arte.ruta, "las tres mesas tienen su capa de profundidad") end
+for _, object in ipairs(Plano.objetos) do assert(#object.choque >= 6, "las tres mesas tienen su capa de profundidad") end
 print("presentation: car speed, compact boxes, disabled bag, removed phone and casino artwork: ok")

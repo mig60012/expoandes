@@ -20,7 +20,9 @@
 --]]
 
 local Casa = {}
+Casa.usa_cursor = true
 local DialogueView = require("src/states/casa/dialogue")
+local Mando = require("src/systems/mando")
 
 -- Tamano del espacio virtual en el que se disena todo
 local VW, VH = 1280, 720
@@ -604,7 +606,7 @@ function Casa:draw()
 
     love.graphics.setColor(0.6, 0.6, 0.6)
     love.graphics.setFont(self.fuente)
-    local pista = (c.indice < #c.paginas) and "Click para continuar" or "Click para volver a casa"
+    local pista = Mando.boton("aceptar") .. " · Continuar"
     love.graphics.printf(pista, 0, VH - 60, VW, "center")
   end
 
@@ -689,6 +691,10 @@ end
 function Casa:keypressed(key, scancode, isrepeat)
   if self.dialogue then
     self.dialogue:keypressed(key, scancode, isrepeat)
+    return
+  end
+  if self.cinematica and (key == "z" or key == "return" or key == "space") then
+    self:avanzar_cinematica()
     return
   end
   if key == "escape" then

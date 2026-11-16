@@ -1,6 +1,7 @@
 local transicion = {}
 local Characters = require("src/ui/characters")
 local StoryView = require("src/ui/story_dialogue")
+local Mando = require("src/systems/mando")
 local filtro_add_tarde = love.graphics.newImage("assets/transicion/Filtro_add(tarde).PNG")
 local filtro_add_siempre = love.graphics.newImage("assets/transicion/filtro_add_siempre.PNG")
 local filtro_color_burn = love.graphics.newImage("assets/transicion/Filtro_color_burn.PNG")
@@ -333,6 +334,17 @@ function transicion:draw()
   love.graphics.setBlendMode("alpha")
   love.graphics.pop()
   self.dialogue:draw()
+  if not self.dialogue:is_active() then
+    self.fuente_ayuda = self.fuente_ayuda or love.graphics.newFont(math.max(16, math.floor(h * 0.028)))
+    local texto = Mando.boton("correr") .. " · " .. (Characters.has_car(self.context) and "Acelerar" or "Correr")
+    local ancho, alto = self.fuente_ayuda:getWidth(texto) + 32, self.fuente_ayuda:getHeight() + 14
+    love.graphics.setColor(0, 0, 0, 0.55)
+    love.graphics.rectangle("fill", (w - ancho) / 2, h - alto - 24, ancho, alto, 8)
+    love.graphics.setColor(1, 1, 1, 0.9)
+    love.graphics.setFont(self.fuente_ayuda)
+    love.graphics.printf(texto, 0, h - alto - 17, w, "center")
+    love.graphics.setColor(1, 1, 1, 1)
+  end
   if self.transition_error then
     love.graphics.setColor(1, 0.35, 0.35, 1)
     love.graphics.print(self.transition_error, 20, h - 30)
