@@ -56,8 +56,12 @@ local context = {
 local function click_left()
   transition:mousepressed(60 * height / 1080, 500 * height / 1080, 1)
 end
+local function finish_walk()
+  transition:update(1)
+end
 transition:enter(context)
 click_left()
+finish_walk()
 assert(destination == "casa", "left door enters the house")
 assert(context.time_of_day == 2, "entering a door preserves nighttime")
 destination = nil
@@ -67,6 +71,7 @@ transition:mousepressed(400, 100, 1)
 assert(destination == nil, "clicks outside doors do not enter")
 transition.dialogue.active = true
 click_left()
+finish_walk()
 assert(destination == nil, "dialogue blocks door clicks")
 transition.dialogue.active = false
 
@@ -76,19 +81,28 @@ transition:enter(context)
 local scale = height / 1080
 local offset = width - 9600 * scale
 transition:mousepressed(offset + 8700 * scale, 500 * scale, 1)
+finish_walk()
 assert(destination == "casino", "right door enters the casino after scrolling")
 assert(transition:door_at(60 * scale, 500 * scale) == nil, "offscreen house cannot be clicked")
 
 -- Walking cannot move beyond either end of the street.
+destination = nil
+transition:update(1)
 keys = { a = true, h = true }
 transition:update(100)
+keys = {}
 click_left()
+finish_walk()
 assert(destination == "casa", "left boundary remains accessible")
+destination = nil
 keys = { d = true, h = true }
 transition:update(100)
-transition:mousepressed(offset + 8700 * scale, 500 * scale, 1)
-assert(destination == "casino", "right boundary remains accessible")
 keys = {}
+context.state_machine.last = "casino"
+transition:enter(context)
+transition:keypressed("return")
+finish_walk()
+assert(destination == "casino", "Enter or A in front of the casino door enters it")
 
 -- Hit testing follows changes in window size, not fixed screen coordinates.
 width, height = 1920, 1080
@@ -127,11 +141,13 @@ machine:switch("casa")
 machine:mousepressed(800, 180, 1) -- Interior door, without a prior hover/update.
 assert(machine.current_name == "transicion", "house door really exits to the street")
 machine:mousepressed(60 * height / 1080, 500 * height / 1080, 1)
+machine:update(1)
 assert(machine.current_name == "casa", "street house door really enters the house")
 assert(house.sprites.fondo.path == "assets/casa/fondo.png")
 machine:mousepressed(800, 180, 1)
 context.time_of_day = 2
-machine:mousepressed(30, 730 * height / 1080 + 24, 1) -- Visible entrance label.
+machine:mousepressed(30, 388 * height / 1080 - 24, 1) -- Visible entrance label above the door.
+machine:update(1)
 assert(machine.current_name == "casa", "visible house entrance label is also clickable")
 assert(house.sprites.fondo.path == "assets/casa/fondo_noche.png", "round trip preserves night")
 house:leave()
