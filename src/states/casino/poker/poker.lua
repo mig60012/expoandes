@@ -205,6 +205,7 @@ function Poker:enter(context, machine, opciones)
   math.random()
   math.random()
   self.jugada_registrada = false
+  self.saldo_agotado = false
   self.fuente_ui = love.graphics.newFont("assets/AntonSC-Regular.ttf", 20)
   self.fuente_boton = love.graphics.newFont("assets/AntonSC-Regular.ttf", 22)
   self.multiply_shader = crear_multiply_shader()
@@ -476,19 +477,19 @@ function Poker:terminar_mano()
   if se_revelan_cartas then Audio.reproducir("card_flip") end
   self.showdown_time = 0
   self.out_of_chips = self.game.players[1].stack <= 0
+  self.saldo_agotado = self.out_of_chips
   self.session_finished = self.out_of_chips or self.game.hand_number >= MANOS_POR_SESION
   self.returning_to_casino = self.out_of_chips
   self:registrar_jugada_si_termino()
 end
 
--- Terminar las manos de la sesion cuenta como una jugada del dia (igual que cada
--- giro en la ruleta). Se avisa al casino una sola vez por sesion, en cuanto acaba
--- la ultima mano, aunque despues el jugador salga con Esc en vez de con LEAVE.
+-- Completar la sesion o quedarse sin fichas cuenta como una jugada del dia.
+-- Se avisa al casino una sola vez, al terminar la mano.
 function Poker:registrar_jugada_si_termino()
   if not self.session_finished or self.jugada_registrada then return end
   self.jugada_registrada = true
   self:liquidar_fichas()
-  if self.opciones.al_jugar then self.opciones.al_jugar(0) end
+  if self.opciones.al_jugar then self.opciones.al_jugar(0, self.saldo_agotado) end
 end
 
 function Poker:listo_para_salir()
@@ -1185,6 +1186,7 @@ end
 function Poker:leave()
   self:liquidar_fichas()
   self.context, self.machine, self.opciones = nil, nil, nil
+  self.saldo_agotado = nil
   self.cartas, self.baraja, self.jugadores, self.comunales = nil, nil, nil, nil
   self.bots, self.holdem_board, self.game = nil, nil, nil
   self.comunales_reveladas, self.comunales_visibles, self.input_lock = nil, nil, nil
